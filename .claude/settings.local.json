@@ -221,7 +221,12 @@
       "Bash(python3:*)",
       "Bash(taskkill:*)",
       "Bash(tasklist /FI \"IMAGENAME eq VxPlay.exe\" /V)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nBeta inicial v1.0 - Sistema de Restaurantes VxPlay\n\nSistema completo de gestión de restaurantes con:\n- Panel SuperAdmin para gestión de tiendas\n- Panel Admin para gestión de productos y pedidos\n- Panel Cocina para visualización de pedidos\n- Panel Mesero para toma de pedidos\n- Tienda online para clientes\n- App de escritorio VxPlay (launcher)\n- Sistema de auto-actualización\n- Soporte para variantes de productos\n- Sistema de ofertas y descuentos\n- Impresión de tickets\n- Gestión de categorías maestras\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git branch:*)",
+      "Bash(Remove-Item -Path \"c:\\\\Users\\\\issac\\\\OneDrive\\\\Desktop\\\\rest\\\\check_*.py\", \"c:\\\\Users\\\\issac\\\\OneDrive\\\\Desktop\\\\rest\\\\fix_*.py\", \"c:\\\\Users\\\\issac\\\\OneDrive\\\\Desktop\\\\rest\\\\test_*.py\", \"c:\\\\Users\\\\issac\\\\OneDrive\\\\Desktop\\\\rest\\\\verify_*.py\", \"c:\\\\Users\\\\issac\\\\OneDrive\\\\Desktop\\\\rest\\\\add_*.py\", \"c:\\\\Users\\\\issac\\\\OneDrive\\\\Desktop\\\\rest\\\\deploy_*.py\", \"c:\\\\Users\\\\issac\\\\OneDrive\\\\Desktop\\\\rest\\\\upload_and_restart.py\" -Force -ErrorAction SilentlyContinue)",
+      "Bash(Write-Host \"Archivos eliminados\")",
+      "Bash(git push)"
     ]
   }
 }

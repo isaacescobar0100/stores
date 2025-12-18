@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test Variantes</title></head>
+<body>
+<h1>Test de Variantes</h1>
+{% for cat, data in menu.items() %}
+<h2>{{ cat }}</h2>
+{% if data.tipo == 'con_subcategorias' %}
+    {% for subcat, productos in data.subcategorias.items() %}
+    <h3>{{ subcat }}</h3>
+    {% for producto in productos %}
+    <div style="border:1px solid black; margin:5px; padding:10px;">
+        <strong>{{ producto.nombre }}</strong> (ID: {{ producto.id }})<br>
+        Tiene variantes: {{ 'SI' if producto.variantes else 'NO' }}<br>
+        {% if producto.variantes %}
+        Cantidad variantes: {{ producto.variantes|length }}<br>
+        Variantes: {{ producto.variantes|tojson }}<br>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% endfor %}
+{% else %}
+    {% for producto in data.productos %}
+    <div style="border:1px solid black; margin:5px; padding:10px;">
+        <strong>{{ producto.nombre }}</strong> (ID: {{ producto.id }})<br>
+        Tiene variantes: {{ 'SI' if producto.variantes else 'NO' }}<br>
+        {% if producto.variantes %}
+        Cantidad variantes: {{ producto.variantes|length }}<br>
+        {% endif %}
+    </div>
+    {% endfor %}
+{% endif %}
+{% endfor %}
+</body>
+</html>

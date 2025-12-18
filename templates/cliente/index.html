@@ -1,0 +1,1520 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ tienda.nombre }} - Menu{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cliente.css') }}?v=20251217b">
+{% endblock %}
+
+{% block extra_styles %}
+{% endblock %}
+
+{% block content %}
+<!-- Navbar -->
+<nav class="navbar">
+    <div class="navbar-container">
+        <a href="/" class="logo">
+            <div class="logo-icon">
+                {% if tienda.logo %}
+                <img src="{{ tienda.logo }}" alt="{{ tienda.nombre }}">
+                {% else %}
+                <i class="fas fa-utensils"></i>
+                {% endif %}
+            </div>
+            <span class="logo-text">{{ tienda.nombre }}</span>
+        </a>
+        <div class="navbar-actions">
+            <button class="btn-track" onclick="openTrackingModal()">
+                <i class="fas fa-search-location"></i>
+                <span>Rastrear</span>
+            </button>
+            {% if tienda.modo_pedido != 'mesero' and not modo_catalogo %}
+            <button class="cart-btn" onclick="toggleCart()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="cart-badge" id="cartCount">0</span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<main class="main">
+    <!-- Hero -->
+    <section class="hero{% if tienda.banner_url %} hero-with-banner{% endif %}" {% if tienda.banner_url %}style="background-image: url('{{ tienda.banner_url }}');"{% endif %}>
+        <div class="hero-content">
+            {% if tienda.logo and not tienda.banner_url %}
+            <img src="{{ tienda.logo }}" alt="{{ tienda.nombre }}" class="hero-logo">
+            {% endif %}
+            <h1>{{ tienda.nombre }}</h1>
+            <p class="hero-slogan">{{ tienda.slogan or '¡Bienvenido!' }}</p>
+            <div class="hero-info">
+                {% if tienda.direccion %}<span><i class="fas fa-map-marker-alt"></i> {{ tienda.direccion }}</span>{% endif %}
+                {% if tienda.telefono %}<span><i class="fas fa-phone"></i> {{ tienda.telefono }}</span>{% endif %}
+                {% if tienda.horario %}<span><i class="fas fa-clock"></i> {{ tienda.horario }}</span>{% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Barra de busqueda -->
+    <div class="search-container">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" class="search-input" id="searchInput" placeholder="Buscar productos..." oninput="searchProducts(this.value)">
+        <button class="search-clear" id="searchClear" onclick="clearSearch()">x</button>
+    </div>
+
+    <!-- Mensaje sin resultados -->
+    <div class="no-results" id="noResults" style="display: none;">
+        <i class="fas fa-search"></i>
+        <p>No se encontraron productos</p>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filters-bar">
+        <button class="filter-btn active" data-sort="price-asc" onclick="sortProducts('price-asc', this)">
+            <i class="fas fa-arrow-up"></i> Menor precio
+        </button>
+        <button class="filter-btn" data-sort="price-desc" onclick="sortProducts('price-desc', this)">
+            <i class="fas fa-arrow-down"></i> Mayor precio
+        </button>
+        <button class="filter-btn" data-sort="popular" onclick="sortProducts('popular', this)">
+            <i class="fas fa-fire"></i> Populares
+        </button>
+    </div>
+
+    <!-- Nav de Categorías - Skeleton -->
+    <nav class="category-nav skeletons-container loading" id="categorySkeletons">
+        <ul class="category-nav-list">
+            {% for i in range(6) %}
+            <li class="category-nav-item">
+                <div class="skeleton-category">
+                    <div class="skeleton skeleton-category-img"></div>
+                    <div class="skeleton skeleton-category-label"></div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </nav>
+
+    <!-- Nav de Categorías - Real -->
+    <nav class="category-nav" id="categoryNav">
+        <ul class="category-nav-list">
+            {% for categoria, data in menu.items() %}
+            {% if data %}
+            <li class="category-nav-item{% if loop.first %} active{% endif %}" onclick="filterCategory('{{ categoria|replace(' ', '-')|lower }}', this)" data-category="{{ categoria|replace(' ', '-')|lower }}">
+                <div class="category-pill">
+                    <img class="category-thumb" src="{{ data.icono if data.icono else categoria_images.get(categoria, 'https://source.unsplash.com/featured/?food') }}" alt="{{ categoria }}" loading="lazy">
+                    <span class="category-label">{{ categoria }}</span>
+                </div>
+            </li>
+            {% endif %}
+            {% endfor %}
+        </ul>
+    </nav>
+
+    <!-- Productos Skeleton -->
+    <div class="skeletons-container loading" id="productSkeletons">
+        <section class="category-section">
+            <div class="category-header">
+                <div class="skeleton" style="height: 24px; width: 150px;"></div>
+                <div class="skeleton" style="height: 20px; width: 80px; border-radius: 20px;"></div>
+            </div>
+            <div class="skeletons-grid">
+                {% for i in range(6) %}
+                <div class="skeleton-card">
+                    <div class="skeleton-image"></div>
+                    <div class="skeleton-body">
+                        <div class="skeleton skeleton-title"></div>
+                        <div class="skeleton skeleton-text"></div>
+                        <div class="skeleton skeleton-text short"></div>
+                        <div class="skeleton-footer">
+                            <div class="skeleton skeleton-price"></div>
+                            <div class="skeleton skeleton-btn"></div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    <!-- Contenido Real -->
+    <div class="content-container loading" id="realContent">
+    <!-- Ofertas -->
+    {% if ofertas %}
+    <section class="offers-section">
+        <h2 class="section-title"><i class="fas fa-fire" style="color: var(--secondary);"></i> Ofertas Especiales</h2>
+        <div class="offers-grid">
+            {% for oferta in ofertas %}
+            <article class="offer-card">
+                <div class="offer-badge">
+                    {% if oferta.tipo == 'porcentaje' or oferta.tipo == 'descuento' %}
+                        -{{ (oferta.valor_descuento or 0)|int }}%
+                    {% elif oferta.tipo == 'precio_fijo' %}
+                        OFERTA
+                    {% elif oferta.tipo == 'promocion' %}
+                        PROMO
+                    {% else %}
+                        COMBO
+                    {% endif %}
+                </div>
+                <div class="offer-image">
+                    {% if oferta.imagen %}
+                    <img src="{{ oferta.imagen }}" alt="{{ oferta.titulo }}" loading="lazy">
+                    {% else %}
+                    <div class="placeholder-svg">
+                        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Etiqueta de oferta -->
+                            <path d="M25 30 L55 30 L75 50 L55 70 L25 70 Z" fill="#ef4444" opacity="0.9"/>
+                            <circle cx="35" cy="50" r="5" fill="white" opacity="0.8"/>
+                            <!-- Simbolo % -->
+                            <circle cx="58" cy="42" r="6" stroke="white" stroke-width="2.5" fill="none"/>
+                            <circle cx="68" cy="58" r="6" stroke="white" stroke-width="2.5" fill="none"/>
+                            <line x1="70" y1="38" x2="56" y2="62" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                            <!-- Destellos -->
+                            <path d="M80 25 L82 30 L87 28 L84 33 L89 35 L84 37 L87 42 L82 40 L80 45 L78 40 L73 42 L76 37 L71 35 L76 33 L73 28 L78 30 Z" fill="#fbbf24" opacity="0.8"/>
+                        </svg>
+                    </div>
+                    {% endif %}
+                </div>
+                <h3 class="offer-title">{{ oferta.titulo }}</h3>
+                <p class="offer-desc">{{ oferta.descripcion or '' }}</p>
+                {% if oferta.precio_oferta %}
+                <div class="offer-price">
+                    {% if oferta.producto_precio %}
+                    <span class="old">${{ "{:,.0f}".format(oferta.producto_precio)|replace(",", ".") }}</span>
+                    {% endif %}
+                    <span class="new">${{ "{:,.0f}".format(oferta.precio_oferta)|replace(",", ".") }}</span>
+                </div>
+                {% elif oferta.producto_id and oferta.producto_precio %}
+                <div class="offer-price">
+                    <span class="old">${{ "{:,.0f}".format(oferta.producto_precio)|replace(",", ".") }}</span>
+                    <span class="new">
+                        {% if oferta.tipo == 'porcentaje' %}
+                            ${{ "{:,.0f}".format(oferta.producto_precio * (1 - oferta.valor_descuento/100))|replace(",", ".") }}
+                        {% else %}
+                            ${{ "{:,.0f}".format(oferta.producto_precio)|replace(",", ".") }}
+                        {% endif %}
+                    </span>
+                </div>
+                {% endif %}
+                {% if oferta.tipo == 'descuento' and oferta.productos_ids %}
+                <!-- Botones para tipo descuento: ojo (ver) y carrito (agregar productos) -->
+                <button class="offer-view-btn" onclick="event.stopPropagation(); showOfertaProductos({{ oferta.id }}, '{{ oferta.productos_nombres or '' }}', {{ oferta.valor_descuento or 0 }})" style="position:absolute;bottom:15px;right:{% if tienda.modo_pedido != 'mesero' and not modo_catalogo %}65px{% else %}15px{% endif %};width:44px;height:44px;border-radius:50%;border:none;background:#3b82f6;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(59,130,246,0.4);font-size:18px;">
+                    <i class="fas fa-eye"></i>
+                </button>
+                {% if tienda.modo_pedido != 'mesero' and not modo_catalogo %}
+                <button class="offer-add-btn" onclick="event.stopPropagation(); showOfertaProductosParaAgregar({{ oferta.id }}, '{{ oferta.productos_ids }}', {{ oferta.valor_descuento or 0 }}, '{{ oferta.titulo }}');">
+                    <i class="fas fa-cart-plus"></i>
+                </button>
+                {% endif %}
+                {% elif oferta.tipo == 'promocion' %}
+                <button class="offer-add-btn" style="opacity: 0.5; cursor: default;" disabled>
+                    <i class="fas fa-info"></i>
+                </button>
+                {% elif tienda.modo_pedido != 'mesero' and not modo_catalogo %}
+                <button class="offer-add-btn" onclick="event.stopPropagation(); addOfertaToCart({{ oferta.id }}, {{ oferta.precio_oferta or 0 }}, '{{ oferta.titulo }}'); showAddedFeedback(this);">
+                    <i class="fas fa-plus"></i>
+                </button>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </div>
+        <!-- Dots de navegación para móvil -->
+        <div class="offers-dots" id="offersDots">
+            {% for oferta in ofertas %}
+            <span class="offers-dot{% if loop.first %} active{% endif %}" data-index="{{ loop.index0 }}" onclick="scrollToOffer({{ loop.index0 }})"></span>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Botón volver al inicio -->
+    <button class="btn-back-home" id="btnBackHome" onclick="showHome()">
+        <i class="fas fa-arrow-left"></i> Volver al inicio
+    </button>
+
+    <!-- Sección Destacados (visible en inicio) -->
+    <section class="featured-section" id="featuredSection">
+        <h2 class="section-title"><i class="fas fa-star"></i> Destacados</h2>
+        <div class="products-grid">
+            {% set destacados_count = namespace(value=0) %}
+            {% for categoria, productos in menu.items() %}
+                {% for producto in productos %}
+                    {% if producto.badge and destacados_count.value < 8 %}
+                    <article class="product-card" data-price="{{ producto.precio }}" data-badge="{{ producto.badge or '' }}" data-name="{{ producto.nombre }}">
+                        <div class="product-image">
+                            <span class="product-badge badge-{{ producto.badge }}">
+                                {% if producto.badge == 'nuevo' %}Nuevo
+                                {% elif producto.badge == 'popular' %}Popular
+                                {% elif producto.badge == 'mas_vendido' %}Top Ventas
+                                {% endif %}
+                            </span>
+                            {% if producto.imagen %}
+                            <img src="{{ producto.imagen }}" alt="{{ producto.nombre }}" loading="lazy">
+                            {% else %}
+                            <div class="placeholder-svg">
+                                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <ellipse cx="50" cy="65" rx="38" ry="12" fill="var(--text-muted)" opacity="0.3"/>
+                                    <ellipse cx="50" cy="62" rx="35" ry="10" fill="var(--bg-card)"/>
+                                    <ellipse cx="50" cy="60" rx="30" ry="8" fill="var(--text-muted)" opacity="0.2"/>
+                                    <circle cx="42" cy="52" r="8" fill="var(--primary)" opacity="0.8"/>
+                                    <circle cx="58" cy="50" r="10" fill="var(--secondary)" opacity="0.7"/>
+                                    <circle cx="50" cy="45" r="6" fill="#10b981" opacity="0.8"/>
+                                </svg>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="product-body">
+                            <h3 class="product-name">{{ producto.nombre }}</h3>
+                            <p class="product-desc">{{ producto.descripcion or 'Delicioso platillo' }}</p>
+                            <div class="product-footer">
+                                <span class="product-price">${{ "{:,.0f}".format(producto.precio)|replace(",", ".") }}</span>
+                                {% if tienda.modo_pedido != 'mesero' and not modo_catalogo %}
+                                <button class="btn-add" onclick="addToCart({{ producto.id }})">+</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </article>
+                    {% set destacados_count.value = destacados_count.value + 1 %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Menú por categorías -->
+    {% for categoria, data in menu.items() %}
+    {% if data %}
+    <section class="category-section" data-category="{{ categoria|replace(' ', '-')|lower }}" id="cat-{{ categoria|replace(' ', '-')|lower }}">
+        <div class="category-header">
+            <h2 class="category-title">{{ categoria }}</h2>
+            {% if data.tipo == 'simple' %}
+            <span class="category-count">{{ data.productos|length }} productos</span>
+            {% endif %}
+        </div>
+
+        {% if data.tipo == 'con_subcategorias' %}
+        <!-- Subcategorias tabs -->
+        <div class="subcategory-tabs">
+            {% for subcat, productos in data.subcategorias.items() %}
+            <button class="subcategory-tab{% if loop.first %} active{% endif %}"
+                    onclick="showSubcategory(this, '{{ categoria|replace(' ', '-')|lower }}-{{ subcat|replace(' ', '-')|lower }}')">
+                {{ subcat }}
+            </button>
+            {% endfor %}
+        </div>
+
+        {% for subcat, productos in data.subcategorias.items() %}
+        <div class="subcategory-content{% if loop.first %} active{% endif %}"
+             id="subcontent-{{ categoria|replace(' ', '-')|lower }}-{{ subcat|replace(' ', '-')|lower }}">
+            <div class="products-grid">
+                {% for producto in productos %}
+                <article class="product-card" data-price="{{ producto.precio }}" data-badge="{{ producto.badge or '' }}" data-name="{{ producto.nombre }}">
+                    <div class="product-image">
+                        {% if producto.badge %}
+                        <span class="product-badge badge-{{ producto.badge }}">
+                            {% if producto.badge == 'nuevo' %}Nuevo
+                            {% elif producto.badge == 'popular' %}Popular
+                            {% elif producto.badge == 'mas_vendido' %}Top Ventas
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                        {% if producto.imagen %}
+                        <img src="{{ producto.imagen }}" alt="{{ producto.nombre }}" loading="lazy">
+                        {% else %}
+                        <div class="placeholder-svg">
+                            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <ellipse cx="50" cy="65" rx="38" ry="12" fill="var(--text-muted)" opacity="0.3"/>
+                                <ellipse cx="50" cy="62" rx="35" ry="10" fill="var(--bg-card)"/>
+                                <ellipse cx="50" cy="60" rx="30" ry="8" fill="var(--text-muted)" opacity="0.2"/>
+                                <circle cx="42" cy="52" r="8" fill="var(--primary)" opacity="0.8"/>
+                                <circle cx="58" cy="50" r="10" fill="var(--secondary)" opacity="0.7"/>
+                                <circle cx="50" cy="45" r="6" fill="#10b981" opacity="0.8"/>
+                                <path d="M35 35 Q38 30 35 25" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                                <path d="M50 32 Q53 27 50 22" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                                <path d="M65 35 Q68 30 65 25" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                            </svg>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="product-body">
+                        <h3 class="product-name">{{ producto.nombre }}</h3>
+                        <p class="product-desc">{{ producto.descripcion or 'Delicioso platillo' }}</p>
+                        <div class="product-footer">
+                            {% if producto.variantes and producto.variantes|length > 0 %}
+                            <span class="product-price" style="font-size:12px;color:#64748b;">Desde ${{ "{:,.0f}".format(producto.variantes[0]['precio']|float)|replace(",", ".") }}</span>
+                            {% if tienda.modo_pedido != 'mesero' and not modo_catalogo %}
+                            <button class="btn-add" onclick="showVariantesModalCliente({{ producto.id }})" id="btn-{{ producto.id }}">+</button>
+                            {% endif %}
+                            {% else %}
+                            <span class="product-price">${{ "{:,.0f}".format(producto.precio)|replace(",", ".") }}</span>
+                            {% if tienda.modo_pedido != 'mesero' and not modo_catalogo %}
+                            <button class="btn-add" onclick="addToCart({{ producto.id }})" id="btn-{{ producto.id }}">+</button>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        {% else %}
+        <!-- Categoria simple sin subcategorias -->
+        <div class="products-grid">
+            {% for producto in data.productos %}
+            <article class="product-card" data-price="{{ producto.precio }}" data-badge="{{ producto.badge or '' }}" data-name="{{ producto.nombre }}">
+                <div class="product-image">
+                    {% if producto.badge %}
+                    <span class="product-badge badge-{{ producto.badge }}">
+                        {% if producto.badge == 'nuevo' %}Nuevo
+                        {% elif producto.badge == 'popular' %}Popular
+                        {% elif producto.badge == 'mas_vendido' %}Top Ventas
+                        {% endif %}
+                    </span>
+                    {% endif %}
+                    {% if producto.imagen %}
+                    <img src="{{ producto.imagen }}" alt="{{ producto.nombre }}" loading="lazy">
+                    {% else %}
+                    <div class="placeholder-svg">
+                        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <ellipse cx="50" cy="65" rx="38" ry="12" fill="var(--text-muted)" opacity="0.3"/>
+                            <ellipse cx="50" cy="62" rx="35" ry="10" fill="var(--bg-card)"/>
+                            <ellipse cx="50" cy="60" rx="30" ry="8" fill="var(--text-muted)" opacity="0.2"/>
+                            <circle cx="42" cy="52" r="8" fill="var(--primary)" opacity="0.8"/>
+                            <circle cx="58" cy="50" r="10" fill="var(--secondary)" opacity="0.7"/>
+                            <circle cx="50" cy="45" r="6" fill="#10b981" opacity="0.8"/>
+                            <path d="M35 35 Q38 30 35 25" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                            <path d="M50 32 Q53 27 50 22" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                            <path d="M65 35 Q68 30 65 25" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                        </svg>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="product-body">
+                    <h3 class="product-name">{{ producto.nombre }}</h3>
+                    <p class="product-desc">{{ producto.descripcion or 'Delicioso platillo' }}</p>
+                    <div class="product-footer">
+                        {% if producto.variantes and producto.variantes|length > 0 %}
+                        <span class="product-price" style="font-size:12px;color:#64748b;">Desde ${{ "{:,.0f}".format(producto.variantes[0]['precio']|float)|replace(",", ".") }}</span>
+                        {% if tienda.modo_pedido != 'mesero' and not modo_catalogo %}
+                        <button class="btn-add" onclick="showVariantesModalCliente({{ producto.id }})" id="btn-{{ producto.id }}">+</button>
+                        {% endif %}
+                        {% else %}
+                        <span class="product-price">${{ "{:,.0f}".format(producto.precio)|replace(",", ".") }}</span>
+                        {% if tienda.modo_pedido != 'mesero' and not modo_catalogo %}
+                        <button class="btn-add" onclick="addToCart({{ producto.id }})" id="btn-{{ producto.id }}">+</button>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+    {% endfor %}
+    </div><!-- fin content-container -->
+</main>
+
+{% if tienda.modo_pedido != 'mesero' and not modo_catalogo %}
+<!-- Cart Overlay -->
+<div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
+
+<!-- Cart Sidebar -->
+<div class="cart-sidebar" id="cartSidebar">
+    <div class="cart-header">
+        <h3>Tu pedido</h3>
+        <button class="cart-close" onclick="toggleCart()">x</button>
+    </div>
+    <div class="cart-body" id="cartItems">
+        <div class="cart-empty">
+            <div class="cart-empty-icon"><i class="fas fa-shopping-cart"></i></div>
+            <p>Tu carrito esta vacio</p>
+        </div>
+    </div>
+    <div class="cart-footer">
+        <div class="cart-row">
+            <span>Subtotal</span>
+            <span id="cartSubtotal">$0.00</span>
+        </div>
+        <div class="cart-row">
+            <span>Envio a domicilio</span>
+            <span id="cartDelivery">${{ "{:,.0f}".format(tienda.costo_domicilio)|replace(",", ".") }}</span>
+        </div>
+        <div class="cart-total">
+            <span>Total</span>
+            <span id="cartTotal">$0.00</span>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px; text-align: center;">
+            Pedido minimo: ${{ "{:,.0f}".format(tienda.pedido_minimo)|replace(",", ".") }}
+        </p>
+        <button class="btn btn-primary btn-checkout" id="checkoutBtn" onclick="goToCheckout()" disabled>
+            Hacer pedido
+        </button>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal Telefono -->
+<div class="phone-modal-overlay" id="phoneModal">
+    <div class="phone-modal">
+        <h3>Ingresa tu telefono</h3>
+        <p>Para agilizar tu pedido</p>
+        <div class="loading" id="phoneLoading">
+            <i class="fas fa-spinner fa-spin"></i> Buscando...
+        </div>
+        <input type="tel" id="phoneInput" placeholder="Ej: 3001234567" maxlength="15">
+        <div class="phone-modal-btns">
+            <button class="btn-cancel" onclick="closePhoneModal()">Cancelar</button>
+            <button class="btn-continue" onclick="checkPhone()">Continuar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Rastreo -->
+<div class="tracking-modal-overlay" id="trackingModal">
+    <div class="tracking-modal">
+        <div class="tracking-modal-header">
+            <h3><i class="fas fa-search-location"></i> Rastrear Pedidos</h3>
+            <p>Ingresa tu número de teléfono</p>
+        </div>
+        <div class="tracking-modal-body">
+            <div class="tracking-input-group">
+                <input type="tel" id="trackInput" placeholder="Ej: 3001234567">
+                <button onclick="trackOrder()"><i class="fas fa-search"></i></button>
+            </div>
+            <div class="tracking-result" id="trackingResult">
+                <div id="pedidosList"></div>
+            </div>
+        </div>
+        <div class="tracking-modal-footer">
+            <button class="btn-close-modal" onclick="closeTrackingModal()">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer class="footer">
+    <p class="footer-info">© 2025 {{ tienda.nombre }} | {{ tienda.telefono }}</p>
+</footer>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PEDIDO_MINIMO = {{ tienda.pedido_minimo }};
+
+// Datos de productos con variantes
+var productosConVariantes = {
+{% for categoria, data in menu.items() %}
+{% if data.tipo == 'con_subcategorias' %}
+{% for subcat, productos in data.subcategorias.items() %}
+{% for producto in productos %}
+{% if producto.variantes and producto.variantes|length > 0 %}
+{{ producto.id }}: { nombre: "{{ producto.nombre|replace('"', '\\"') }}", imagen: "{{ producto.imagen or '' }}", variantes: {{ producto.variantes|tojson }} },
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% else %}
+{% for producto in data.productos %}
+{% if producto.variantes and producto.variantes|length > 0 %}
+{{ producto.id }}: { nombre: "{{ producto.nombre|replace('"', '\\"') }}", imagen: "{{ producto.imagen or '' }}", variantes: {{ producto.variantes|tojson }} },
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+};
+
+function toggleCart() {
+    document.getElementById('cartSidebar').classList.toggle('active');
+    document.getElementById('cartOverlay').classList.toggle('active');
+    if (document.getElementById('cartSidebar').classList.contains('active')) {
+        loadCart();
+    }
+}
+
+function loadCart() {
+    // Si no existe el carrito (modo mesero), no cargar
+    if (!document.getElementById('cartCount')) return;
+
+    fetch('/api/carrito')
+        .then(r => r.json())
+        .then(data => updateCartUI(data));
+}
+
+function updateCartUI(data) {
+    const cartItems = document.getElementById('cartItems');
+    const cartCount = document.getElementById('cartCount');
+    const cartSubtotal = document.getElementById('cartSubtotal');
+    const cartTotal = document.getElementById('cartTotal');
+    const checkoutBtn = document.getElementById('checkoutBtn');
+
+    // Si no existen los elementos del carrito (modo mesero), salir
+    if (!cartCount || !cartItems) return;
+
+    cartCount.textContent = data.total_items;
+
+    if (data.carrito.length === 0) {
+        cartItems.innerHTML = '<div class="cart-empty"><div class="cart-empty-icon"><i class="fas fa-shopping-cart"></i></div><p>Tu carrito esta vacio</p></div>';
+        cartSubtotal.textContent = '$0.00';
+        cartTotal.textContent = '$0.00';
+        checkoutBtn.disabled = true;
+        return;
+    }
+
+    let html = '';
+    data.carrito.forEach(item => {
+        const isOferta = item.es_oferta || item.oferta_id;
+        const hasDescuento = item.descuento && item.descuento > 0;
+        const itemId = isOferta ? item.oferta_id : item.producto_id;
+        const dataType = isOferta ? 'oferta' : 'producto';
+
+        // Calcular precio original si tiene descuento
+        let precioHTML = '';
+        if (hasDescuento) {
+            const precioOriginal = Math.floor(item.precio / (1 - item.descuento/100));
+            precioHTML = `<span style="text-decoration:line-through;color:#94a3b8;font-size:12px;margin-right:6px;">$${precioOriginal.toLocaleString('es-CO')}</span><span style="color:#10b981;font-weight:600;">$${Math.floor(item.precio).toLocaleString('es-CO')}</span>`;
+        } else {
+            precioHTML = `$${Math.floor(item.precio).toLocaleString('es-CO')}`;
+        }
+
+        html += `<div class="cart-item">
+            <div class="cart-item-info">
+                <div class="cart-item-name">${item.nombre}${isOferta ? ' <span style="color:#ef4444;font-size:11px;">(Oferta)</span>' : ''}</div>
+                <div class="cart-item-price">${precioHTML}</div>
+            </div>
+            <div class="cart-item-controls">
+                <button type="button" class="qty-btn" data-action="decrease" data-type="${dataType}" data-id="${itemId}" data-qty="${item.cantidad}">-</button>
+                <span class="qty-num">${item.cantidad}</span>
+                <button type="button" class="qty-btn" data-action="increase" data-type="${dataType}" data-id="${itemId}" data-qty="${item.cantidad}">+</button>
+            </div>
+        </div>`;
+    });
+
+    cartItems.innerHTML = html;
+    cartSubtotal.textContent = '$' + Math.floor(data.subtotal).toLocaleString('es-CO');
+    cartTotal.textContent = '$' + Math.floor(data.total).toLocaleString('es-CO');
+    checkoutBtn.disabled = data.subtotal < PEDIDO_MINIMO;
+}
+
+function addToCart(productoId) {
+    const btn = document.getElementById('btn-' + productoId);
+    btn.classList.add('added');
+    btn.innerHTML = '<i class="fas fa-check"></i>';
+
+    fetch('/api/carrito/agregar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ producto_id: productoId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('cartCount').textContent = data.total_items;
+        setTimeout(() => {
+            btn.classList.remove('added');
+            btn.innerHTML = '+';
+        }, 1000);
+    });
+}
+
+function showVariantesModalCliente(productoId) {
+    var prod = productosConVariantes[productoId];
+    if (!prod) return;
+
+    var nombre = prod.nombre;
+    var imagen = prod.imagen;
+    var variantes = prod.variantes;
+
+    // Crear modal de selección de variantes
+    var modal = document.createElement('div');
+    modal.id = 'variantesModal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+
+    var variantesHTML = '';
+    variantes.forEach(function(v) {
+        var precio = parseFloat(v.precio) || 0;
+        var vNombreSafe = (v.nombre || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        var nombreCompleto = nombre + ' ' + v.nombre;
+        variantesHTML += '<button type="button" class="variante-btn" onclick="addToCartConVariante(' + productoId + ', \'' + nombreCompleto.replace(/'/g, "\\'") + '\', ' + precio + ')" style="display:flex;justify-content:space-between;align-items:center;width:100%;padding:15px;margin-bottom:8px;border:2px solid #e2e8f0;background:white;border-radius:10px;cursor:pointer;font-size:14px;transition:all 0.2s;" onmouseover="this.style.borderColor=\'var(--primary)\';this.style.background=\'#fef2f2\'" onmouseout="this.style.borderColor=\'#e2e8f0\';this.style.background=\'white\'"><span style="font-weight:600;">' + v.nombre + '</span><span style="color:var(--primary);font-weight:700;">$' + precio.toLocaleString('es-CO') + '</span></button>';
+    });
+
+    modal.innerHTML =
+        '<div style="background:white;border-radius:16px;max-width:350px;width:90%;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
+            '<div style="padding:20px;background:var(--primary);color:white;">' +
+                '<div style="display:flex;align-items:center;gap:12px;">' +
+                    (imagen ? '<img src="' + imagen + '" style="width:50px;height:50px;border-radius:8px;object-fit:cover;">' : '<div style="width:50px;height:50px;border-radius:8px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;"><i class="fas fa-utensils"></i></div>') +
+                    '<div>' +
+                        '<h3 style="margin:0;font-size:16px;">' + nombre + '</h3>' +
+                        '<div style="font-size:12px;opacity:0.9;">Selecciona una opción</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div style="padding:15px;">' + variantesHTML + '</div>' +
+            '<div style="padding:0 15px 15px;">' +
+                '<button onclick="document.getElementById(\'variantesModal\').remove()" style="width:100%;padding:12px;border:2px solid #e2e8f0;background:white;border-radius:8px;font-weight:600;cursor:pointer;">' +
+                    'Cancelar' +
+                '</button>' +
+            '</div>' +
+        '</div>';
+
+    modal.onclick = function(e) {
+        if (e.target === modal) modal.remove();
+    };
+
+    document.body.appendChild(modal);
+}
+
+function addToCartConVariante(productoId, nombreConVariante, precio) {
+    // Cerrar modal
+    var modal = document.getElementById('variantesModal');
+    if (modal) modal.remove();
+
+    var btn = document.getElementById('btn-' + productoId);
+    if (btn) {
+        btn.classList.add('added');
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+    }
+
+    fetch('/api/carrito/agregar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            producto_id: productoId,
+            nombre_override: nombreConVariante,
+            precio_override: precio
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('cartCount').textContent = data.total_items;
+        showToast('✓ Agregado: ' + nombreConVariante);
+        if (btn) {
+            setTimeout(function() {
+                btn.classList.remove('added');
+                btn.innerHTML = '+';
+            }, 1000);
+        }
+    });
+}
+
+function showOfertaProductos(ofertaId, productosNombres, descuento) {
+    // Crear modal elegante
+    var productos = productosNombres.split(', ');
+    var productosHTML = productos.map(function(p) {
+        return '<div style="display:flex;align-items:center;gap:10px;padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:8px;">' +
+            '<span style="background:linear-gradient(135deg,#ef4444,#dc2626);color:white;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;">-' + descuento + '%</span>' +
+            '<span style="font-weight:500;color:#1e293b;">' + p + '</span>' +
+        '</div>';
+    }).join('');
+
+    var modal = document.createElement('div');
+    modal.id = 'ofertaModal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px);';
+    modal.innerHTML =
+        '<div style="background:white;border-radius:16px;max-width:400px;width:90%;max-height:80vh;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);animation:slideUp 0.3s ease;">' +
+            '<div style="background:linear-gradient(135deg,#ef4444,#dc2626);padding:20px;text-align:center;">' +
+                '<div style="font-size:48px;margin-bottom:8px;">🏷️</div>' +
+                '<h3 style="color:white;margin:0;font-size:20px;">¡' + descuento + '% de Descuento!</h3>' +
+                '<p style="color:rgba(255,255,255,0.9);margin:8px 0 0;font-size:14px;">En los siguientes productos</p>' +
+            '</div>' +
+            '<div style="padding:20px;max-height:300px;overflow-y:auto;">' + productosHTML + '</div>' +
+            '<div style="padding:16px 20px;border-top:1px solid #e2e8f0;text-align:center;">' +
+                '<button onclick="document.getElementById(\'ofertaModal\').remove()" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:white;border:none;padding:12px 32px;border-radius:25px;font-weight:600;cursor:pointer;font-size:14px;">¡Entendido!</button>' +
+            '</div>' +
+        '</div>';
+
+    modal.onclick = function(e) { if(e.target === modal) modal.remove(); };
+    document.body.appendChild(modal);
+
+    // Agregar animacion CSS
+    if(!document.getElementById('ofertaModalStyles')) {
+        var style = document.createElement('style');
+        style.id = 'ofertaModalStyles';
+        style.textContent = '@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}';
+        document.head.appendChild(style);
+    }
+}
+
+function showOfertaProductosParaAgregar(ofertaId, productosIds, descuento, titulo) {
+    // Obtener los productos de la oferta via API
+    fetch('/api/oferta/' + ofertaId + '/productos')
+        .then(r => r.json())
+        .then(data => {
+            if(!data.productos || data.productos.length === 0) {
+                showToast('No hay productos en esta oferta', true);
+                return;
+            }
+
+            // Guardar productos para agregar todos
+            window.productosOferta = data.productos.map(function(p) {
+                return {
+                    id: p.id,
+                    nombre: p.nombre,
+                    precioOriginal: parseFloat(p.precio) || 0,
+                    precioConDescuento: (parseFloat(p.precio) || 0) * (1 - descuento/100)
+                };
+            });
+            window.descuentoOferta = descuento;
+
+            // Calcular total con descuento
+            var totalOriginal = window.productosOferta.reduce(function(sum, p) { return sum + p.precioOriginal; }, 0);
+            var totalConDescuento = window.productosOferta.reduce(function(sum, p) { return sum + p.precioConDescuento; }, 0);
+
+            var productosHTML = window.productosOferta.map(function(p) {
+                return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px;">' +
+                    '<span style="font-weight:500;color:#1e293b;font-size:14px;">' + p.nombre + '</span>' +
+                    '<div style="display:flex;align-items:center;gap:6px;">' +
+                        '<span style="text-decoration:line-through;color:#94a3b8;font-size:12px;">$' + p.precioOriginal.toLocaleString('es-CO', {maximumFractionDigits:0}) + '</span>' +
+                        '<span style="color:#10b981;font-weight:600;font-size:14px;">$' + p.precioConDescuento.toLocaleString('es-CO', {maximumFractionDigits:0}) + '</span>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+
+            var modal = document.createElement('div');
+            modal.id = 'ofertaModal';
+            modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px);';
+            modal.innerHTML =
+                '<div style="background:white;border-radius:16px;max-width:400px;width:90%;max-height:80vh;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);animation:slideUp 0.3s ease;">' +
+                    '<div style="background:linear-gradient(135deg,#10b981,#059669);padding:20px;text-align:center;">' +
+                        '<div style="font-size:40px;margin-bottom:8px;">🛒</div>' +
+                        '<h3 style="color:white;margin:0;font-size:18px;">' + titulo + '</h3>' +
+                        '<p style="color:rgba(255,255,255,0.9);margin:8px 0 0;font-size:13px;">' + data.productos.length + ' productos con -' + descuento + '% de descuento</p>' +
+                    '</div>' +
+                    '<div style="padding:16px;max-height:250px;overflow-y:auto;">' + productosHTML + '</div>' +
+                    '<div style="padding:12px 16px;background:#f1f5f9;border-top:1px solid #e2e8f0;">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+                            '<span style="color:#64748b;font-size:14px;">Total:</span>' +
+                            '<div>' +
+                                '<span style="text-decoration:line-through;color:#94a3b8;font-size:13px;margin-right:8px;">$' + totalOriginal.toLocaleString('es-CO', {maximumFractionDigits:0}) + '</span>' +
+                                '<span style="color:#10b981;font-weight:700;font-size:18px;">$' + totalConDescuento.toLocaleString('es-CO', {maximumFractionDigits:0}) + '</span>' +
+                            '</div>' +
+                        '</div>' +
+                        '<button onclick="agregarTodosProductosOferta()" style="width:100%;background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;padding:14px;border-radius:12px;font-weight:600;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px;">' +
+                            '<i class="fas fa-cart-plus"></i> Agregar todo al carrito' +
+                        '</button>' +
+                    '</div>' +
+                '</div>';
+
+            modal.onclick = function(e) { if(e.target === modal) modal.remove(); };
+            document.body.appendChild(modal);
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            showToast('Error al cargar productos', true);
+        });
+}
+
+async function agregarTodosProductosOferta() {
+    if(!window.productosOferta || window.productosOferta.length === 0) return;
+
+    var descuento = window.descuentoOferta;
+    var count = window.productosOferta.length;
+
+    // Agregar productos secuencialmente para evitar problemas de sesión
+    for(var i = 0; i < window.productosOferta.length; i++) {
+        var p = window.productosOferta[i];
+        try {
+            var response = await fetch('/api/carrito/agregar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    producto_id: p.id,
+                    precio_override: p.precioConDescuento,
+                    descuento: descuento,
+                    nombre_override: p.nombre + ' (-' + descuento + '%)'
+                })
+            });
+            await response.json();
+        } catch(err) {
+            console.error('Error agregando producto:', err);
+        }
+    }
+
+    // Cerrar modal y mostrar toast
+    document.getElementById('ofertaModal').remove();
+    showToast('✓ ' + count + ' productos agregados');
+
+    // Abrir carrito para mostrar los productos agregados
+    setTimeout(function() {
+        toggleCart();
+    }, 500);
+}
+
+function addOfertaToCart(ofertaId, precio, titulo) {
+    fetch('/api/carrito/agregar-oferta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oferta_id: ofertaId, precio: precio, titulo: titulo })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if(data.total_items !== undefined) {
+            document.getElementById('cartCount').textContent = data.total_items;
+        }
+        // Mostrar notificación de éxito
+        showToast('✓ Agregado al carrito');
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        showToast('Error al agregar', true);
+    });
+}
+
+function showAddedFeedback(btn) {
+    // Animación del botón
+    btn.style.transform = 'scale(1.3)';
+    btn.style.background = '#10b981';
+    setTimeout(function() {
+        btn.style.transform = '';
+        btn.style.background = '';
+    }, 300);
+}
+
+function showToast(message, isError) {
+    // Remover toast anterior si existe
+    var existingToast = document.getElementById('toast');
+    if(existingToast) existingToast.remove();
+
+    var toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.textContent = message;
+    toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:' + (isError ? '#ef4444' : '#10b981') + ';color:white;padding:12px 24px;border-radius:25px;font-weight:500;z-index:9999;box-shadow:0 4px 15px rgba(0,0,0,0.2);animation:fadeInUp 0.3s ease;';
+    document.body.appendChild(toast);
+
+    // Agregar animación CSS si no existe
+    if(!document.getElementById('toastStyles')) {
+        var style = document.createElement('style');
+        style.id = 'toastStyles';
+        style.textContent = '@keyframes fadeInUp{from{opacity:0;transform:translate(-50%,20px)}to{opacity:1;transform:translate(-50%,0)}}';
+        document.head.appendChild(style);
+    }
+
+    setTimeout(function() { toast.remove(); }, 2000);
+}
+
+function updateQty(productoId, cantidad) {
+    fetch('/api/carrito/actualizar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ producto_id: productoId, cantidad: cantidad })
+    })
+    .then(r => r.json())
+    .then(data => updateCartUI(data));
+}
+
+function updateOfertaQty(ofertaId, cantidad) {
+    fetch('/api/carrito/actualizar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oferta_id: ofertaId, cantidad: cantidad })
+    })
+    .then(r => r.json())
+    .then(data => updateCartUI(data));
+}
+
+function goToCheckout() {
+    document.getElementById('phoneModal').classList.add('active');
+}
+
+function closePhoneModal() {
+    document.getElementById('phoneModal').classList.remove('active');
+}
+
+function checkPhone() {
+    const phone = document.getElementById('phoneInput').value.trim();
+    if (!phone || phone.length < 7) {
+        alert('Ingresa un telefono valido');
+        return;
+    }
+
+    document.getElementById('phoneLoading').style.display = 'block';
+
+    fetch('/api/cliente/verificar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telefono: phone })
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('phoneLoading').style.display = 'none';
+        if (data.existe) {
+            window.location.href = '/checkout?telefono=' + encodeURIComponent(phone);
+        } else {
+            window.location.href = '/checkout?telefono=' + encodeURIComponent(phone) + '&nuevo=1';
+        }
+    })
+    .catch(() => {
+        document.getElementById('phoneLoading').style.display = 'none';
+        window.location.href = '/checkout?telefono=' + encodeURIComponent(phone);
+    });
+}
+
+function filterCategory(category, element) {
+    // Actualizar botón activo
+    document.querySelectorAll('.category-nav-item').forEach(el => el.classList.remove('active'));
+    element.classList.add('active');
+
+    // Ocultar sección destacados y ofertas
+    var featuredSection = document.getElementById('featuredSection');
+    var offersSection = document.querySelector('.offers-section');
+    if (featuredSection) featuredSection.style.display = 'none';
+    if (offersSection) offersSection.style.display = 'none';
+
+    // Mostrar botón volver
+    var btnBack = document.getElementById('btnBackHome');
+    if (btnBack) btnBack.classList.add('visible');
+
+    // Ocultar todas las categorías primero
+    document.querySelectorAll('.category-section').forEach(section => {
+        section.classList.remove('visible');
+    });
+
+    // Mostrar solo la categoría seleccionada
+    const targetSection = document.querySelector('.category-section[data-category="' + category + '"]');
+    if (targetSection) {
+        targetSection.classList.add('visible');
+        smoothScrollTo(targetSection);
+    }
+
+    // Scroll el nav de categorías para mostrar el elemento activo
+    scrollCategoryNavToActive(element);
+}
+
+// Función para cambiar subcategorias
+function showSubcategory(btn, subcatId) {
+    // Quitar active de todos los tabs del mismo grupo
+    btn.parentElement.querySelectorAll('.subcategory-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+
+    // Ocultar todos los contenidos de subcategoria del mismo padre
+    var section = btn.closest('.category-section');
+    section.querySelectorAll('.subcategory-content').forEach(c => c.classList.remove('active'));
+
+    // Mostrar el contenido seleccionado
+    var targetContent = document.getElementById('subcontent-' + subcatId);
+    if (targetContent) {
+        targetContent.classList.add('active');
+    }
+}
+
+// Función para volver al inicio (landing)
+function showHome() {
+    // Mostrar secciones de inicio
+    var featuredSection = document.getElementById('featuredSection');
+    var offersSection = document.querySelector('.offers-section');
+    if (featuredSection) featuredSection.style.display = 'block';
+    if (offersSection) offersSection.style.display = 'block';
+
+    // Ocultar botón volver
+    var btnBack = document.getElementById('btnBackHome');
+    if (btnBack) btnBack.classList.remove('visible');
+
+    // Ocultar todas las categorías de productos
+    document.querySelectorAll('.category-section').forEach(section => {
+        section.classList.remove('visible');
+    });
+
+    // Quitar activo de categorías
+    document.querySelectorAll('.category-nav-item').forEach(el => el.classList.remove('active'));
+
+    // Scroll al inicio
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function smoothScrollTo(element) {
+    const navbarHeight = 60;
+    const categoryNavHeight = 90;
+    const filtersBarHeight = 50;
+    const offset = navbarHeight + categoryNavHeight + filtersBarHeight + 10;
+
+    const elementPosition = element.getBoundingClientRect().top;
+    const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+    window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+    });
+}
+
+function scrollCategoryNavToActive(element) {
+    const nav = document.querySelector('.category-nav-list');
+    if (!nav) return;
+
+    const navRect = nav.parentElement.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+
+    // Centrar el elemento en el nav
+    const scrollLeft = element.offsetLeft - (navRect.width / 2) + (elementRect.width / 2);
+    nav.parentElement.scrollTo({
+        left: scrollLeft,
+        behavior: 'smooth'
+    });
+}
+
+// ============ SCROLL SPY ============
+let isScrolling = false;
+let scrollTimeout;
+
+function initScrollSpy() {
+    window.addEventListener('scroll', function() {
+        // Evitar actualizar mientras se hace scroll programático
+        if (isScrolling) return;
+
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(updateActiveCategory, 100);
+    }, { passive: true });
+}
+
+function updateActiveCategory() {
+    const sections = document.querySelectorAll('.category-section:not(.hidden)');
+    const navItems = document.querySelectorAll('.category-nav-item');
+
+    if (sections.length === 0) return;
+
+    const offset = 250; // Offset desde el top
+    let currentSection = null;
+
+    sections.forEach(section => {
+        const rect = section.getBoundingClientRect();
+        if (rect.top <= offset && rect.bottom > offset) {
+            currentSection = section.dataset.category;
+        }
+    });
+
+    // Si no hay sección visible, usar la primera
+    if (!currentSection && sections.length > 0) {
+        const firstVisible = Array.from(sections).find(s => s.getBoundingClientRect().top > -100);
+        if (firstVisible) {
+            currentSection = firstVisible.dataset.category;
+        }
+    }
+
+    if (currentSection) {
+        navItems.forEach(item => {
+            const isActive = item.dataset.category === currentSection;
+            item.classList.toggle('active', isActive);
+
+            // Scroll nav para mostrar categoría activa
+            if (isActive) {
+                const nav = document.querySelector('.category-nav');
+                if (nav) {
+                    const navRect = nav.getBoundingClientRect();
+                    const itemRect = item.getBoundingClientRect();
+
+                    // Solo hacer scroll si el item no está completamente visible
+                    if (itemRect.left < navRect.left || itemRect.right > navRect.right) {
+                        const scrollLeft = item.offsetLeft - (navRect.width / 2) + (itemRect.width / 2);
+                        nav.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+                    }
+                }
+            }
+        });
+    }
+}
+
+function searchProducts(query) {
+    const clearBtn = document.getElementById('searchClear');
+    clearBtn.classList.toggle('show', query.length > 0);
+
+    query = query.toLowerCase().trim();
+    let found = false;
+
+    document.querySelectorAll('.category-section').forEach(section => {
+        let sectionFound = false;
+        section.querySelectorAll('.product-card').forEach(card => {
+            const name = card.querySelector('.product-name').textContent.toLowerCase();
+            const desc = card.querySelector('.product-desc').textContent.toLowerCase();
+            const match = name.includes(query) || desc.includes(query);
+            card.style.display = match || !query ? '' : 'none';
+            if (match) sectionFound = true;
+        });
+        section.classList.toggle('hidden', !sectionFound && query);
+        if (sectionFound) found = true;
+    });
+
+    document.getElementById('noResults').style.display = (!found && query) ? 'block' : 'none';
+
+    if (!query) {
+        document.querySelectorAll('.category-nav-item').forEach((el, i) => {
+            el.classList.toggle('active', i === 0);
+        });
+        document.querySelectorAll('.category-section').forEach((section, i) => {
+            section.classList.toggle('hidden', i !== 0);
+        });
+    }
+}
+
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    searchProducts('');
+}
+
+// ============ PRODUCT FILTERS ============
+let originalOrder = [];
+
+function initFilters() {
+    // Guardar orden original de productos
+    document.querySelectorAll('.products-grid').forEach(grid => {
+        const cards = Array.from(grid.querySelectorAll('.product-card'));
+        originalOrder.push({ grid, cards: cards.map(c => c.cloneNode(true)) });
+    });
+}
+
+function sortProducts(sortType, btn) {
+    // Actualizar botón activo
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    // Mostrar todas las categorías para ordenar
+    document.querySelectorAll('.category-section').forEach(s => s.classList.remove('hidden'));
+    document.querySelectorAll('.category-nav-item').forEach(el => el.classList.remove('active'));
+
+    document.querySelectorAll('.products-grid').forEach((grid, idx) => {
+        const cards = Array.from(grid.querySelectorAll('.product-card'));
+
+        let sorted;
+        switch(sortType) {
+            case 'price-asc':
+                sorted = cards.sort((a, b) => parseFloat(a.dataset.price) - parseFloat(b.dataset.price));
+                break;
+            case 'price-desc':
+                sorted = cards.sort((a, b) => parseFloat(b.dataset.price) - parseFloat(a.dataset.price));
+                break;
+            case 'popular':
+                // Ordenar: primero los que tienen badge (popular, mas_vendido, nuevo)
+                sorted = cards.sort((a, b) => {
+                    const badgeOrder = { 'mas_vendido': 0, 'popular': 1, 'nuevo': 2, '': 3 };
+                    return (badgeOrder[a.dataset.badge] || 3) - (badgeOrder[b.dataset.badge] || 3);
+                });
+                break;
+            default:
+                // Restaurar orden original
+                if (originalOrder[idx]) {
+                    grid.innerHTML = '';
+                    originalOrder[idx].cards.forEach(card => grid.appendChild(card.cloneNode(true)));
+                    // Re-bind event listeners
+                    rebindAddButtons(grid);
+                }
+                return;
+        }
+
+        // Reordenar DOM
+        sorted.forEach(card => grid.appendChild(card));
+    });
+}
+
+function rebindAddButtons(grid) {
+    grid.querySelectorAll('.btn-add').forEach(btn => {
+        const id = btn.id.replace('btn-', '');
+        btn.onclick = () => addToCart(parseInt(id));
+    });
+}
+
+function openTrackingModal() {
+    document.getElementById('trackingModal').classList.add('active');
+    document.getElementById('trackingResult').classList.remove('show');
+    document.getElementById('trackInput').value = '';
+}
+
+function closeTrackingModal() {
+    document.getElementById('trackingModal').classList.remove('active');
+}
+
+function trackOrder() {
+    const telefono = document.getElementById("trackInput").value.trim();
+    if (!telefono) return;
+
+    fetch('/api/pedido/rastrear-telefono/' + encodeURIComponent(telefono))
+        .then(r => r.json())
+        .then(data => {
+            const pedidosList = document.getElementById('pedidosList');
+
+            if (data.error || !data.encontrado) {
+                pedidosList.innerHTML = '<div class="no-pedidos"><i class="fas fa-inbox"></i><p>' + (data.error || 'No tienes pedidos activos') + '</p></div>';
+                document.getElementById('trackingResult').classList.add('show');
+                return;
+            }
+
+            // Mostrar lista de pedidos
+            let html = '';
+            data.pedidos.forEach(pedido => {
+                html += '<div class="pedido-card">';
+                html += '<div class="pedido-header">';
+                html += '<span class="pedido-numero">#' + pedido.numero_orden + '</span>';
+                html += '<span class="pedido-estado ' + pedido.estado + '">' + pedido.estado + '</span>';
+                html += '</div>';
+                html += '<div class="pedido-info">';
+                html += '<span>' + pedido.fecha + '</span>';
+                html += '<span class="pedido-total">$' + Math.floor(pedido.total).toLocaleString('es-CO') + '</span>';
+                html += '</div>';
+                html += '</div>';
+            });
+
+            pedidosList.innerHTML = html;
+            document.getElementById('trackingResult').classList.add('show');
+        })
+        .catch(() => {
+            alert('No se pudo rastrear el pedido');
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadCart();
+
+    // Simular carga y mostrar contenido real
+    setTimeout(function() {
+        hideSkeletons();
+        initScrollSpy(); // Inicializar scroll spy
+        initFilters(); // Inicializar filtros después de mostrar contenido
+    }, 800);
+
+    // Inicializar carrusel de ofertas
+    initOffersCarousel();
+
+    // Event delegation para botones de cantidad del carrito
+    var cartItemsEl = document.getElementById('cartItems');
+    if (cartItemsEl) {
+        cartItemsEl.addEventListener('click', function(e) {
+            var btn = e.target;
+            // Buscar el botón si clickeamos en un hijo
+            while (btn && btn !== cartItemsEl && !btn.classList.contains('qty-btn')) {
+                btn = btn.parentElement;
+            }
+            if (!btn || btn === cartItemsEl) return;
+
+            var action = btn.getAttribute('data-action');
+            var type = btn.getAttribute('data-type');
+            var id = btn.getAttribute('data-id');
+            var qty = btn.getAttribute('data-qty');
+
+            if (!action || !id) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            var newQty = action === 'increase' ? parseInt(qty) + 1 : parseInt(qty) - 1;
+
+            if (type === 'oferta') {
+                updateOfertaQty(parseInt(id), newQty);
+            } else {
+                updateQty(parseInt(id), newQty);
+            }
+        });
+    }
+});
+
+// ============ OFFERS CAROUSEL ============
+function initOffersCarousel() {
+    const offersGrid = document.querySelector('.offers-grid');
+    if (!offersGrid) return;
+
+    offersGrid.addEventListener('scroll', function() {
+        updateOffersDots();
+    });
+}
+
+function scrollToOffer(index) {
+    const offersGrid = document.querySelector('.offers-grid');
+    const offerCards = offersGrid.querySelectorAll('.offer-card');
+    if (!offerCards[index]) return;
+
+    const card = offerCards[index];
+    const scrollLeft = card.offsetLeft - (offersGrid.offsetWidth - card.offsetWidth) / 2;
+    offersGrid.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+}
+
+function updateOffersDots() {
+    const offersGrid = document.querySelector('.offers-grid');
+    const offerCards = offersGrid.querySelectorAll('.offer-card');
+    const dots = document.querySelectorAll('.offers-dot');
+    if (!dots.length) return;
+
+    const scrollLeft = offersGrid.scrollLeft;
+    const cardWidth = offerCards[0]?.offsetWidth || 0;
+    const gap = 12;
+    const activeIndex = Math.round(scrollLeft / (cardWidth + gap));
+
+    dots.forEach((dot, i) => {
+        dot.classList.toggle('active', i === activeIndex);
+    });
+}
+
+function hideSkeletons() {
+    // Ocultar skeletons de categorías
+    const catSkeletons = document.getElementById('categorySkeletons');
+    const catNav = document.getElementById('categoryNav');
+    if (catSkeletons) catSkeletons.classList.remove('loading');
+    if (catNav) catNav.classList.remove('loading');
+
+    // Ocultar skeletons de productos
+    const prodSkeletons = document.getElementById('productSkeletons');
+    const realContent = document.getElementById('realContent');
+    if (prodSkeletons) prodSkeletons.classList.remove('loading');
+    if (realContent) realContent.classList.remove('loading');
+}
+
+// También ocultar cuando todas las imágenes carguen
+window.addEventListener('load', function() {
+    hideSkeletons();
+});
+
+// ============ PUSH NOTIFICATIONS ============
+const OrderNotifications = {
+    trackedOrders: {},
+    pollingInterval: null,
+
+    init() {
+        // Cargar pedidos guardados del localStorage
+        const saved = localStorage.getItem('trackedOrders');
+        if (saved) {
+            this.trackedOrders = JSON.parse(saved);
+        }
+
+        // Solicitar permiso de notificaciones
+        if ('Notification' in window && Notification.permission === 'default') {
+            // Se pedirá cuando el usuario haga un pedido
+        }
+
+        // Iniciar polling si hay pedidos para rastrear
+        if (Object.keys(this.trackedOrders).length > 0) {
+            this.startPolling();
+        }
+    },
+
+    requestPermission() {
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    },
+
+    addOrder(numeroOrden, estado) {
+        this.trackedOrders[numeroOrden] = {
+            estado: estado,
+            addedAt: Date.now()
+        };
+        localStorage.setItem('trackedOrders', JSON.stringify(this.trackedOrders));
+        this.requestPermission();
+        this.startPolling();
+    },
+
+    startPolling() {
+        if (this.pollingInterval) return;
+
+        // Verificar cada 30 segundos
+        this.pollingInterval = setInterval(() => {
+            this.checkOrders();
+        }, 30000);
+
+        // También verificar inmediatamente
+        this.checkOrders();
+    },
+
+    async checkOrders() {
+        const orders = Object.keys(this.trackedOrders);
+        if (orders.length === 0) {
+            this.stopPolling();
+            return;
+        }
+
+        // Limpiar pedidos viejos (más de 24 horas)
+        const now = Date.now();
+        orders.forEach(orderNum => {
+            if (now - this.trackedOrders[orderNum].addedAt > 86400000) {
+                delete this.trackedOrders[orderNum];
+            }
+        });
+
+        // Verificar estado de cada pedido
+        for (const orderNum of Object.keys(this.trackedOrders)) {
+            try {
+                const response = await fetch('/api/pedido/rastrear/' + encodeURIComponent(orderNum));
+                const data = await response.json();
+
+                if (data.error) continue;
+
+                const oldStatus = this.trackedOrders[orderNum].estado;
+                const newStatus = data.estado;
+
+                if (oldStatus !== newStatus) {
+                    this.trackedOrders[orderNum].estado = newStatus;
+                    localStorage.setItem('trackedOrders', JSON.stringify(this.trackedOrders));
+                    this.showNotification(orderNum, newStatus, data);
+                }
+
+                // Remover si está entregado o cancelado
+                if (newStatus === 'entregado' || newStatus === 'cancelado') {
+                    setTimeout(() => {
+                        delete this.trackedOrders[orderNum];
+                        localStorage.setItem('trackedOrders', JSON.stringify(this.trackedOrders));
+                    }, 5000);
+                }
+            } catch (e) {
+                console.log('Error checking order:', e);
+            }
+        }
+    },
+
+    showNotification(orderNum, status, data) {
+        const statusMessages = {
+            'pendiente': { title: 'Pedido Recibido', body: 'Tu pedido #' + orderNum + ' ha sido recibido', icon: '🕐' },
+            'preparando': { title: 'Preparando tu pedido', body: '¡Tu pedido #' + orderNum + ' se está preparando!', icon: '🔥' },
+            'listo': { title: '¡Pedido Listo!', body: 'Tu pedido #' + orderNum + ' está listo para entrega', icon: '✅' },
+            'entregado': { title: 'Pedido Entregado', body: '¡Tu pedido #' + orderNum + ' ha sido entregado! ¡Buen provecho!', icon: '🎉' },
+            'cancelado': { title: 'Pedido Cancelado', body: 'Tu pedido #' + orderNum + ' ha sido cancelado', icon: '❌' }
+        };
+
+        const msg = statusMessages[status] || { title: 'Actualización', body: 'Tu pedido ha cambiado a: ' + status, icon: '📦' };
+
+        // Notificación del navegador
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(msg.title, {
+                body: msg.body,
+                icon: '/static/icon-192.png',
+                badge: '/static/icon-192.png',
+                vibrate: [200, 100, 200],
+                tag: 'order-' + orderNum
+            });
+        }
+
+        // También mostrar toast en la página
+        this.showToast(msg.icon + ' ' + msg.title, msg.body);
+    },
+
+    showToast(title, body) {
+        // Crear toast si no existe
+        let toast = document.getElementById('orderToast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'orderToast';
+            toast.innerHTML = '<div class="toast-title"></div><div class="toast-body"></div>';
+            document.body.appendChild(toast);
+        }
+
+        toast.querySelector('.toast-title').textContent = title;
+        toast.querySelector('.toast-body').textContent = body;
+        toast.classList.add('show');
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 5000);
+    },
+
+    stopPolling() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+        }
+    }
+};
+
+// Inicializar notificaciones
+OrderNotifications.init();
+
+// Exponer función para agregar pedido (llamar después de confirmar pedido)
+window.trackNewOrder = function(numeroOrden, estado) {
+    OrderNotifications.addOrder(numeroOrden, estado || 'pendiente');
+};
+</script>
+{% endblock %}

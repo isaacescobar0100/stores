@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+
+{% block extra_styles %}
+/* Admin Layout */
+.admin-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 260px;
+    background: var(--gray-900);
+    color: white;
+    padding: 20px 0;
+    position: fixed;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.sidebar-header {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--gray-700);
+    margin-bottom: 20px;
+}
+
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sidebar-logo-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.sidebar-logo-text {
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.sidebar-logo-sub {
+    font-size: 12px;
+    color: var(--gray-400);
+}
+
+.sidebar-nav { padding: 0 12px; }
+
+.nav-section {
+    margin-bottom: 24px;
+}
+
+.nav-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 8px;
+    margin-bottom: 8px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: var(--gray-300);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    margin-bottom: 4px;
+}
+
+.nav-link:hover {
+    background: var(--gray-800);
+    color: white;
+}
+
+.nav-link.active {
+    background: var(--primary);
+    color: white;
+}
+
+.nav-link-icon {
+    width: 20px;
+    text-align: center;
+}
+
+/* Main Content */
+.admin-main {
+    flex: 1;
+    margin-left: 260px;
+    padding: 24px;
+    background: var(--gray-100);
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.admin-title {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.admin-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.admin-user-name {
+    font-weight: 500;
+}
+
+.admin-user-role {
+    font-size: 12px;
+    color: var(--gray-500);
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    box-shadow: var(--shadow);
+}
+
+.stat-label {
+    font-size: 13px;
+    color: var(--gray-500);
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.stat-change {
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.stat-change.up { color: var(--secondary); }
+.stat-change.down { color: #ef4444; }
+
+/* Action Bar */
+.action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.action-bar-left {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.search-input {
+    padding: 8px 16px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    width: 250px;
+}
+
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 70px;
+        padding: 12px 0;
+    }
+    .sidebar-header { padding: 0 12px 12px; }
+    .sidebar-logo-text, .sidebar-logo-sub, .nav-section-title, .nav-link span:not(.nav-link-icon) {
+        display: none;
+    }
+    .nav-link { justify-content: center; padding: 12px; }
+    .admin-main { margin-left: 70px; }
+}
+
+@media (max-width: 768px) {
+    .sidebar { display: none; }
+    .admin-main { margin-left: 0; }
+    .stats-grid { grid-template-columns: 1fr; }
+}
+
+{% block admin_styles %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <a href="{{ url_for('admin_dashboard') }}" class="sidebar-logo">
+                <div class="sidebar-logo-icon">🍽️</div>
+                <div>
+                    <div class="sidebar-logo-text">{{ tienda.nombre }}</div>
+                    <div class="sidebar-logo-sub">Panel Admin</div>
+                </div>
+            </a>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Principal</div>
+                <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}">
+                    <span class="nav-link-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ url_for('admin_pedidos') }}" class="nav-link {% if request.endpoint == 'admin_pedidos' %}active{% endif %}">
+                    <span class="nav-link-icon">📋</span>
+                    <span>Pedidos</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Catálogo</div>
+                <a href="{{ url_for('admin_productos') }}" class="nav-link {% if request.endpoint == 'admin_productos' %}active{% endif %}">
+                    <span class="nav-link-icon">🍔</span>
+                    <span>Productos</span>
+                </a>
+                <a href="{{ url_for('admin_categorias') }}" class="nav-link {% if request.endpoint == 'admin_categorias' %}active{% endif %}">
+                    <span class="nav-link-icon">📁</span>
+                    <span>Categorías</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Configuración</div>
+                <a href="{{ url_for('admin_configuracion') }}" class="nav-link {% if request.endpoint == 'admin_configuracion' %}active{% endif %}">
+                    <span class="nav-link-icon">⚙️</span>
+                    <span>Mi Tienda</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Accesos</div>
+                <a href="{{ url_for('cocina_pedidos') }}" class="nav-link">
+                    <span class="nav-link-icon">👨‍🍳</span>
+                    <span>Vista Cocina</span>
+                </a>
+                <a href="{{ url_for('index') }}" class="nav-link">
+                    <span class="nav-link-icon">🌐</span>
+                    <span>Ver Tienda</span>
+                </a>
+                <a href="{{ url_for('logout') }}" class="nav-link">
+                    <span class="nav-link-icon">🚪</span>
+                    <span>Cerrar Sesión</span>
+                </a>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+        <header class="admin-header">
+            <h1 class="admin-title">{% block page_title %}Dashboard{% endblock %}</h1>
+            <div class="admin-user">
+                <div>
+                    <div class="admin-user-name">{{ user.nombre }}</div>
+                    <div class="admin-user-role">{{ user.rol|capitalize }}</div>
+                </div>
+            </div>
+        </header>
+
+        {% block admin_content %}{% endblock %}
+    </main>
+</div>
+{% endblock %}

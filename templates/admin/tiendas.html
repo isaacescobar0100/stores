@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block title %}SuperAdmin - Gestión de Tiendas{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top: 40px;">
+    <div class="flex flex-between flex-center mb-4">
+        <h1 style="font-size: 28px; font-weight: 700;">Gestión de Tiendas</h1>
+        <button class="btn btn-primary" onclick="document.getElementById('modalCrear').classList.add('active')">
+            + Nueva Tienda
+        </button>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card">
+        <div class="card-header">
+            <span>Total: {{ tiendas|length }} tiendas</span>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Slug</th>
+                        <th>Subdominio</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tienda in tiendas %}
+                    <tr>
+                        <td>{{ tienda.id }}</td>
+                        <td><strong>{{ tienda.nombre }}</strong></td>
+                        <td><code>{{ tienda.slug }}</code></td>
+                        <td>
+                            <a href="https://{{ tienda.subdominio }}.vxplay.online" target="_blank" class="text-primary">
+                                {{ tienda.subdominio }}.vxplay.online
+                            </a>
+                        </td>
+                        <td>
+                            {% if tienda.activo %}
+                                <span class="badge badge-success">Activo</span>
+                            {% else %}
+                                <span class="badge badge-danger">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="https://{{ tienda.subdominio }}.vxplay.online/admin" target="_blank" class="btn btn-sm btn-secondary">
+                                Ver Admin
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="/superadmin" class="btn btn-secondary">Cerrar Sesión</a>
+    </div>
+</div>
+
+<!-- Modal Crear Tienda -->
+<div id="modalCrear" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Nueva Tienda</h3>
+            <button class="modal-close" onclick="document.getElementById('modalCrear').classList.remove('active')">&times;</button>
+        </div>
+        <form method="POST" action="/superadmin/tiendas/crear">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Nombre de la Tienda</label>
+                    <input type="text" name="nombre" class="form-input" required placeholder="Ej: Pizzería El Italiano">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Slug (URL)</label>
+                    <input type="text" name="slug" class="form-input" required placeholder="Ej: pizzeria-italiano" pattern="[a-z0-9-]+">
+                    <small class="text-muted">Solo letras minúsculas, números y guiones</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Subdominio</label>
+                    <input type="text" name="subdominio" class="form-input" required placeholder="Ej: pizzeria">
+                    <small class="text-muted">Se creará: subdominio.vxplay.online</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Teléfono (opcional)</label>
+                    <input type="text" name="telefono" class="form-input" placeholder="Ej: +57 300 123 4567">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Dirección (opcional)</label>
+                    <input type="text" name="direccion" class="form-input" placeholder="Ej: Calle 10 #20-30">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalCrear').classList.remove('active')">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Crear Tienda</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    code {
+        background: var(--gray-100);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 13px;
+    }
+</style>
+{% endblock %}

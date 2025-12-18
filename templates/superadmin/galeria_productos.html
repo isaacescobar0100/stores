@@ -1,0 +1,684 @@
+{% extends 'superadmin/base.html' %}
+
+{% block title %}Galeria de Productos{% endblock %}
+{% block page_title %}Galeria de Productos{% endblock %}
+{% block page_subtitle %}Sube imagenes a tus productos{% endblock %}
+
+{% block content %}
+<style>
+    .filters-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .filters-row {
+        display: flex;
+        gap: 15px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    .filter-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--gray);
+        margin-bottom: 6px;
+    }
+    .products-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 20px;
+    }
+    .product-card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .product-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    .product-image-container {
+        position: relative;
+        width: 100%;
+        height: 160px;
+        background: #f5f5f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .product-image-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .product-image-container .no-image {
+        color: #ccc;
+        font-size: 48px;
+    }
+    .image-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.2s;
+        cursor: pointer;
+    }
+    .product-card:hover .image-overlay {
+        opacity: 1;
+    }
+    .image-overlay-btn {
+        background: white;
+        color: var(--primary);
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .image-overlay-btn:hover {
+        background: var(--primary);
+        color: white;
+    }
+    .product-info {
+        padding: 15px;
+    }
+    .product-name {
+        font-weight: 600;
+        font-size: 14px;
+        color: var(--dark);
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .product-category {
+        font-size: 12px;
+        color: var(--gray);
+        margin-bottom: 8px;
+    }
+    .product-price {
+        font-weight: 700;
+        color: var(--primary);
+        font-size: 16px;
+    }
+    .image-status {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    .image-status.has-image {
+        background: #dcfce7;
+        color: #16a34a;
+    }
+    .image-status.no-image {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+    .stats-row {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    .stat-box {
+        background: white;
+        padding: 15px 25px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .stat-box .stat-number {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--primary);
+    }
+    .stat-box .stat-label {
+        font-size: 12px;
+        color: var(--gray);
+    }
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .empty-state i {
+        font-size: 64px;
+        color: #ddd;
+        margin-bottom: 20px;
+    }
+    .empty-state h3 {
+        color: var(--dark);
+        margin-bottom: 10px;
+    }
+    .empty-state p {
+        color: var(--gray);
+    }
+
+    /* Modal de subida */
+    .upload-modal-content {
+        max-width: 500px;
+    }
+    .current-image {
+        width: 100%;
+        height: 200px;
+        background: #f5f5f5;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    .current-image img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+    .current-image .placeholder {
+        color: #ccc;
+        font-size: 64px;
+    }
+    .upload-dropzone {
+        border: 2px dashed #ddd;
+        border-radius: 8px;
+        padding: 30px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: #fafafa;
+    }
+    .upload-dropzone:hover, .upload-dropzone.dragover {
+        border-color: var(--primary);
+        background: #f0f4ff;
+    }
+    .upload-dropzone i {
+        font-size: 36px;
+        color: var(--primary);
+        margin-bottom: 10px;
+    }
+    .upload-preview {
+        display: none;
+        margin-top: 15px;
+    }
+    .upload-preview img {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 8px;
+    }
+    .pagination-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin-top: 30px;
+        padding: 20px;
+        background: white;
+        border-radius: 12px;
+    }
+    .page-btn {
+        padding: 8px 14px;
+        border: 1px solid var(--border);
+        background: white;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .page-btn:hover:not(:disabled) {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+    .page-btn.active {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+    .page-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+</style>
+
+<!-- Filtros -->
+<div class="filters-card">
+    <div class="filters-row">
+        <div class="filter-group">
+            <label><i class="fas fa-store"></i> Tienda</label>
+            <select id="tiendaSelect" class="form-control" onchange="cargarProductos()">
+                <option value="">-- Seleccionar tienda --</option>
+                {% for tienda in tiendas %}
+                <option value="{{ tienda.id }}" {% if tienda_seleccionada == tienda.id %}selected{% endif %}>{{ tienda.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label><i class="fas fa-tags"></i> Categoria</label>
+            <select id="categoriaSelect" class="form-control" onchange="cargarProductos()">
+                <option value="">Todas las categorias</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label><i class="fas fa-image"></i> Estado Imagen</label>
+            <select id="imagenSelect" class="form-control" onchange="cargarProductos()">
+                <option value="">Todos</option>
+                <option value="sin_imagen">Sin imagen</option>
+                <option value="con_imagen">Con imagen</option>
+            </select>
+        </div>
+        <div class="filter-group" style="flex: 0;">
+            <button class="btn btn-primary" onclick="cargarProductos()">
+                <i class="fas fa-sync-alt"></i> Actualizar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Estadisticas -->
+<div class="stats-row" id="statsRow" style="display: none;">
+    <div class="stat-box">
+        <div class="stat-number" id="totalProductos">0</div>
+        <div class="stat-label">Total productos</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number" id="conImagen">0</div>
+        <div class="stat-label">Con imagen</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number" id="sinImagen">0</div>
+        <div class="stat-label">Sin imagen</div>
+    </div>
+</div>
+
+<!-- Grid de productos -->
+<div id="productosContainer">
+    <div class="empty-state">
+        <i class="fas fa-store"></i>
+        <h3>Selecciona una tienda</h3>
+        <p>Elige una tienda del selector para ver sus productos</p>
+    </div>
+</div>
+
+<!-- Paginacion -->
+<div class="pagination-container" id="paginationContainer" style="display: none;">
+</div>
+
+<!-- Modal para subir imagen -->
+<div class="modal" id="modalImagen">
+    <div class="modal-content upload-modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-image"></i> <span id="modalProductoNombre">Subir Imagen</span></h3>
+            <button class="modal-close" onclick="cerrarModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="productoIdActual">
+
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">Imagen actual:</label>
+            <div class="current-image" id="currentImage">
+                <i class="fas fa-image placeholder"></i>
+            </div>
+
+            <label style="font-weight: 600; margin-bottom: 10px; display: block;">Nueva imagen:</label>
+            <div class="upload-dropzone" id="uploadDropzone" onclick="document.getElementById('imageInput').click()">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p style="margin: 0; color: #666;">Arrastra una imagen o haz clic para seleccionar</p>
+                <small style="color: #999;">JPG, PNG, WebP - Max 5MB</small>
+            </div>
+            <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="previewImage(this)">
+
+            <div class="upload-preview" id="uploadPreview">
+                <img id="previewImg" src="" alt="Preview">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+            <button class="btn btn-primary" id="btnGuardar" onclick="guardarImagen()" disabled>
+                <i class="fas fa-save"></i> Guardar Imagen
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let productosPagina = [];
+let paginaActual = 1;
+const productosPorPagina = 20;
+let imagenSeleccionada = null;
+
+// Cargar tienda desde URL si existe
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tiendaParam = urlParams.get('tienda');
+    if (tiendaParam) {
+        document.getElementById('tiendaSelect').value = tiendaParam;
+        cargarProductos();
+    }
+});
+
+// Cargar categorias cuando se selecciona tienda
+document.getElementById('tiendaSelect').addEventListener('change', async function() {
+    const tiendaId = this.value;
+    const categoriaSelect = document.getElementById('categoriaSelect');
+
+    categoriaSelect.innerHTML = '<option value="">Todas las categorias</option>';
+
+    if (!tiendaId) return;
+
+    try {
+        const response = await fetch(`/superadmin/api/tienda/${tiendaId}/categorias`);
+        const data = await response.json();
+
+        if (data.categorias) {
+            data.categorias.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = cat.nombre;
+                categoriaSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error cargando categorias:', error);
+    }
+});
+
+// Cargar productos
+async function cargarProductos() {
+    const tiendaId = document.getElementById('tiendaSelect').value;
+    const categoriaId = document.getElementById('categoriaSelect').value;
+    const filtroImagen = document.getElementById('imagenSelect').value;
+
+    if (!tiendaId) {
+        document.getElementById('productosContainer').innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-store"></i>
+                <h3>Selecciona una tienda</h3>
+                <p>Elige una tienda del selector para ver sus productos</p>
+            </div>
+        `;
+        document.getElementById('statsRow').style.display = 'none';
+        document.getElementById('paginationContainer').style.display = 'none';
+        return;
+    }
+
+    showLoading('Cargando productos...');
+
+    try {
+        let url = `/superadmin/api/galeria/productos?tienda_id=${tiendaId}`;
+        if (categoriaId) url += `&categoria_id=${categoriaId}`;
+        if (filtroImagen) url += `&filtro_imagen=${filtroImagen}`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        hideLoading();
+
+        if (data.productos && data.productos.length > 0) {
+            productosPagina = data.productos;
+            paginaActual = 1;
+
+            // Actualizar estadisticas
+            document.getElementById('statsRow').style.display = 'flex';
+            document.getElementById('totalProductos').textContent = data.total;
+            document.getElementById('conImagen').textContent = data.con_imagen;
+            document.getElementById('sinImagen').textContent = data.sin_imagen;
+
+            renderizarProductos();
+        } else {
+            document.getElementById('productosContainer').innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-box-open"></i>
+                    <h3>Sin productos</h3>
+                    <p>No se encontraron productos con los filtros seleccionados</p>
+                </div>
+            `;
+            document.getElementById('statsRow').style.display = 'none';
+            document.getElementById('paginationContainer').style.display = 'none';
+        }
+
+    } catch (error) {
+        hideLoading();
+        console.error('Error cargando productos:', error);
+        showToast('error', 'Error', 'No se pudieron cargar los productos');
+    }
+}
+
+// Renderizar grid de productos
+function renderizarProductos() {
+    const container = document.getElementById('productosContainer');
+    const inicio = (paginaActual - 1) * productosPorPagina;
+    const fin = inicio + productosPorPagina;
+    const productosPaginados = productosPagina.slice(inicio, fin);
+
+    let html = '<div class="products-grid">';
+
+    productosPaginados.forEach(producto => {
+        const tieneImagen = producto.imagen && !producto.imagen.includes('default');
+        const imagenUrl = producto.imagen || '/static/img/producto_default.png';
+
+        html += `
+            <div class="product-card">
+                <div class="product-image-container">
+                    ${tieneImagen ?
+                        `<img src="${imagenUrl}" alt="${producto.nombre}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-image no-image\\'></i>'">` :
+                        '<i class="fas fa-image no-image"></i>'
+                    }
+                    <span class="image-status ${tieneImagen ? 'has-image' : 'no-image'}">
+                        ${tieneImagen ? 'Con imagen' : 'Sin imagen'}
+                    </span>
+                    <div class="image-overlay" onclick="abrirModal(${producto.id}, '${producto.nombre.replace(/'/g, "\\'")}', '${imagenUrl}')">
+                        <button class="image-overlay-btn">
+                            <i class="fas fa-${tieneImagen ? 'edit' : 'plus'}"></i>
+                            ${tieneImagen ? 'Cambiar' : 'Agregar'}
+                        </button>
+                    </div>
+                </div>
+                <div class="product-info">
+                    <div class="product-name" title="${producto.nombre}">${producto.nombre}</div>
+                    <div class="product-category">${producto.categoria_nombre || 'Sin categoria'}</div>
+                    <div class="product-price">$${Number(producto.precio).toLocaleString()}</div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+
+    // Renderizar paginacion
+    renderizarPaginacion();
+}
+
+// Renderizar paginacion
+function renderizarPaginacion() {
+    const totalPaginas = Math.ceil(productosPagina.length / productosPorPagina);
+    const container = document.getElementById('paginationContainer');
+
+    if (totalPaginas <= 1) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'flex';
+
+    let html = `
+        <button class="page-btn" onclick="cambiarPagina(${paginaActual - 1})" ${paginaActual === 1 ? 'disabled' : ''}>
+            <i class="fas fa-chevron-left"></i>
+        </button>
+    `;
+
+    const inicio = Math.max(1, paginaActual - 2);
+    const fin = Math.min(totalPaginas, paginaActual + 2);
+
+    if (inicio > 1) {
+        html += `<button class="page-btn" onclick="cambiarPagina(1)">1</button>`;
+        if (inicio > 2) html += `<span style="color: var(--gray);">...</span>`;
+    }
+
+    for (let i = inicio; i <= fin; i++) {
+        html += `<button class="page-btn ${i === paginaActual ? 'active' : ''}" onclick="cambiarPagina(${i})">${i}</button>`;
+    }
+
+    if (fin < totalPaginas) {
+        if (fin < totalPaginas - 1) html += `<span style="color: var(--gray);">...</span>`;
+        html += `<button class="page-btn" onclick="cambiarPagina(${totalPaginas})">${totalPaginas}</button>`;
+    }
+
+    html += `
+        <button class="page-btn" onclick="cambiarPagina(${paginaActual + 1})" ${paginaActual === totalPaginas ? 'disabled' : ''}>
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        <span style="color: var(--gray); margin-left: 10px;">Pagina ${paginaActual} de ${totalPaginas}</span>
+    `;
+
+    container.innerHTML = html;
+}
+
+function cambiarPagina(pagina) {
+    const totalPaginas = Math.ceil(productosPagina.length / productosPorPagina);
+    if (pagina < 1 || pagina > totalPaginas) return;
+    paginaActual = pagina;
+    renderizarProductos();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Abrir modal
+function abrirModal(productoId, nombre, imagenActual) {
+    document.getElementById('productoIdActual').value = productoId;
+    document.getElementById('modalProductoNombre').textContent = nombre;
+
+    const currentImage = document.getElementById('currentImage');
+    if (imagenActual && !imagenActual.includes('default')) {
+        currentImage.innerHTML = `<img src="${imagenActual}" alt="${nombre}">`;
+    } else {
+        currentImage.innerHTML = '<i class="fas fa-image placeholder"></i>';
+    }
+
+    document.getElementById('uploadPreview').style.display = 'none';
+    document.getElementById('btnGuardar').disabled = true;
+    document.getElementById('imageInput').value = '';
+    imagenSeleccionada = null;
+
+    document.getElementById('modalImagen').classList.add('active');
+}
+
+function cerrarModal() {
+    document.getElementById('modalImagen').classList.remove('active');
+}
+
+// Preview de imagen
+function previewImage(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+
+        if (file.size > 5 * 1024 * 1024) {
+            showToast('error', 'Error', 'La imagen no puede superar 5MB');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('previewImg').src = e.target.result;
+            document.getElementById('uploadPreview').style.display = 'block';
+            document.getElementById('btnGuardar').disabled = false;
+            imagenSeleccionada = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// Drag and drop en el modal
+const dropzone = document.getElementById('uploadDropzone');
+
+dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+});
+
+dropzone.addEventListener('dragleave', () => {
+    dropzone.classList.remove('dragover');
+});
+
+dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+        const input = document.getElementById('imageInput');
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        previewImage(input);
+    }
+});
+
+// Guardar imagen
+async function guardarImagen() {
+    const productoId = document.getElementById('productoIdActual').value;
+
+    if (!imagenSeleccionada) {
+        showToast('warning', 'Atencion', 'Selecciona una imagen primero');
+        return;
+    }
+
+    const btnGuardar = document.getElementById('btnGuardar');
+    btnGuardar.disabled = true;
+    btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+    try {
+        const response = await fetch('/superadmin/api/galeria/producto/imagen', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                producto_id: productoId,
+                imagen_base64: imagenSeleccionada
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showToast('success', 'Guardado', 'Imagen actualizada correctamente');
+            cerrarModal();
+            cargarProductos();
+        } else {
+            throw new Error(result.error || 'Error desconocido');
+        }
+
+    } catch (error) {
+        console.error('Error guardando imagen:', error);
+        showToast('error', 'Error', error.message);
+    } finally {
+        btnGuardar.disabled = false;
+        btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar Imagen';
+    }
+}
+
+// Cerrar modal al hacer clic fuera
+document.getElementById('modalImagen').addEventListener('click', function(e) {
+    if (e.target === this) {
+        cerrarModal();
+    }
+});
+</script>
+{% endblock %}

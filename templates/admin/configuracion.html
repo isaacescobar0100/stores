@@ -1,0 +1,76 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block page_title %}Configuración{% endblock %}
+
+{% block admin_content %}
+<div class="grid grid-2 gap-3">
+    <!-- Info de la tienda -->
+    <div class="card">
+        <div class="card-header">Información de la Tienda</div>
+        <div class="card-body">
+            <form action="{{ url_for('admin_configuracion_guardar') }}" method="POST">
+                <div class="form-group">
+                    <label class="form-label">Nombre del Restaurante</label>
+                    <input type="text" name="nombre" class="form-input" value="{{ tienda.nombre }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Teléfono</label>
+                    <input type="text" name="telefono" class="form-input" value="{{ tienda.telefono or '' }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Dirección</label>
+                    <input type="text" name="direccion" class="form-input" value="{{ tienda.direccion or '' }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Horario</label>
+                    <input type="text" name="horario" class="form-input" value="{{ tienda.horario or '' }}" placeholder="Ej: Lun-Dom 9:00 AM - 10:00 PM">
+                </div>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Configuración de pedidos -->
+    <div class="card">
+        <div class="card-header">Configuración de Pedidos</div>
+        <div class="card-body">
+            <form action="{{ url_for('admin_configuracion_guardar') }}" method="POST">
+                <div class="form-group">
+                    <label class="form-label">Pedido Mínimo ($)</label>
+                    <input type="number" name="pedido_minimo" class="form-input" step="0.01" value="{{ tienda.pedido_minimo }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Costo de Domicilio ($)</label>
+                    <input type="number" name="costo_domicilio" class="form-input" step="0.01" value="{{ tienda.costo_domicilio }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Color Principal</label>
+                    <input type="color" name="color_primario" class="form-input" value="{{ tienda.color_primario }}" style="height: 50px;">
+                </div>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Info de acceso -->
+<div class="card mt-4">
+    <div class="card-header">Información de Acceso</div>
+    <div class="card-body">
+        <div class="grid grid-3 gap-3">
+            <div>
+                <div class="text-muted mb-1">Subdominio</div>
+                <div><strong>{{ tienda.subdominio }}.tudominio.com</strong></div>
+            </div>
+            <div>
+                <div class="text-muted mb-1">URL de la Tienda</div>
+                <div><a href="{{ url_for('index') }}" class="text-primary">Ver tienda en línea →</a></div>
+            </div>
+            <div>
+                <div class="text-muted mb-1">Vista de Cocina</div>
+                <div><a href="{{ url_for('cocina_pedidos') }}" class="text-primary">Abrir cocina →</a></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,1234 @@
+{# Cache Buster v20251213215734 #}
+{% extends 'superadmin/base.html' %}
+
+{% block title %}Gestión de Tiendas
+<!-- Modal Usuarios/Contraseñas -->
+<div class="modal fade" id="modalUsuarios" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-key me-2"></i>Usuarios de <span id="nombreTiendaUsuarios"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="listaUsuarios"></div>
+                <hr>
+                <button class="btn btn-warning w-100" onclick="resetearTodasPasswords()">
+                    <i class="bi bi-arrow-repeat me-2"></i>Resetear TODAS las contraseñas
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nueva Contraseña -->
+<div class="modal fade" id="modalNuevaPassword" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cambiar Contraseña</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="usuarioIdPassword">
+                <p><strong>Usuario:</strong> <span id="emailUsuarioPassword"></span></p>
+                <div class="mb-3">
+                    <label class="form-label">Nueva Contraseña</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="nuevaPassword" placeholder="Mínimo 4 caracteres">
+                        <button class="btn btn-outline-secondary" type="button" onclick="generarPasswordRandom()">
+                            <i class="bi bi-shuffle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary" onclick="guardarNuevaPassword()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Credenciales Generadas -->
+<div class="modal fade" id="modalCredenciales" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i>Credenciales Generadas</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Importante:</strong> Guarda estas credenciales, no se mostrarán de nuevo.
+                </div>
+                <div id="listaCredenciales"></div>
+                <button class="btn btn-outline-primary w-100 mt-3" onclick="copiarCredenciales()">
+                    <i class="bi bi-clipboard me-2"></i>Copiar todas las credenciales
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block page_title %}Gestión de Tiendas
+<!-- Modal Usuarios/Contraseñas -->
+<div class="modal fade" id="modalUsuarios" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-key me-2"></i>Usuarios de <span id="nombreTiendaUsuarios"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="listaUsuarios"></div>
+                <hr>
+                <button class="btn btn-warning w-100" onclick="resetearTodasPasswords()">
+                    <i class="bi bi-arrow-repeat me-2"></i>Resetear TODAS las contraseñas
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nueva Contraseña -->
+<div class="modal fade" id="modalNuevaPassword" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cambiar Contraseña</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="usuarioIdPassword">
+                <p><strong>Usuario:</strong> <span id="emailUsuarioPassword"></span></p>
+                <div class="mb-3">
+                    <label class="form-label">Nueva Contraseña</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="nuevaPassword" placeholder="Mínimo 4 caracteres">
+                        <button class="btn btn-outline-secondary" type="button" onclick="generarPasswordRandom()">
+                            <i class="bi bi-shuffle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary" onclick="guardarNuevaPassword()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Credenciales Generadas -->
+<div class="modal fade" id="modalCredenciales" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i>Credenciales Generadas</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Importante:</strong> Guarda estas credenciales, no se mostrarán de nuevo.
+                </div>
+                <div id="listaCredenciales"></div>
+                <button class="btn btn-outline-primary w-100 mt-3" onclick="copiarCredenciales()">
+                    <i class="bi bi-clipboard me-2"></i>Copiar todas las credenciales
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block page_subtitle %}Administrar todas las tiendas del sistema
+<!-- Modal Usuarios/Contraseñas -->
+<div class="modal fade" id="modalUsuarios" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-key me-2"></i>Usuarios de <span id="nombreTiendaUsuarios"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="listaUsuarios"></div>
+                <hr>
+                <button class="btn btn-warning w-100" onclick="resetearTodasPasswords()">
+                    <i class="bi bi-arrow-repeat me-2"></i>Resetear TODAS las contraseñas
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nueva Contraseña -->
+<div class="modal fade" id="modalNuevaPassword" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cambiar Contraseña</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="usuarioIdPassword">
+                <p><strong>Usuario:</strong> <span id="emailUsuarioPassword"></span></p>
+                <div class="mb-3">
+                    <label class="form-label">Nueva Contraseña</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="nuevaPassword" placeholder="Mínimo 4 caracteres">
+                        <button class="btn btn-outline-secondary" type="button" onclick="generarPasswordRandom()">
+                            <i class="bi bi-shuffle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary" onclick="guardarNuevaPassword()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Credenciales Generadas -->
+<div class="modal fade" id="modalCredenciales" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i>Credenciales Generadas</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Importante:</strong> Guarda estas credenciales, no se mostrarán de nuevo.
+                </div>
+                <div id="listaCredenciales"></div>
+                <button class="btn btn-outline-primary w-100 mt-3" onclick="copiarCredenciales()">
+                    <i class="bi bi-clipboard me-2"></i>Copiar todas las credenciales
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block content %}
+<!-- Toolbar -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" id="buscarTienda" placeholder="Buscar tienda..." class="form-control" style="width: 250px;">
+            <select id="filtroEstado" class="form-control" style="width: 150px;">
+                <option value="">Todos</option>
+                <option value="activa">Activas</option>
+                <option value="inactiva">Inactivas</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalNueva()">
+            <i class="fas fa-plus"></i> Nueva Tienda
+        </button>
+    </div>
+</div>
+
+<!-- Tabla de Tiendas -->
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-store"></i> Tiendas Registradas ({{ tiendas|length }})</h3>
+    </div>
+    <div class="card-body" style="padding: 0;"><div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tienda</th>
+                    <th>Subdominio</th>
+                    <th>Productos</th>
+                    <th>Pedidos Hoy</th>
+                    <th>Ventas Hoy</th>
+                    <th>Estado</th>
+                    <th >Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tienda in tiendas %}
+                <tr>
+                    <td><strong>#{{ tienda.id }}</strong></td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 40px; height: 40px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                                {{ tienda.nombre[0] }}
+                            </div>
+                            <div>
+                                <strong>{{ tienda.nombre }}</strong><br>
+                                <small style="color: var(--gray);">{{ tienda.email or 'Sin email' }}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <a href="https://{{ tienda.subdominio }}.vxplay.online" target="_blank" style="color: var(--primary);">
+                            {{ tienda.subdominio }}.vxplay.online
+                            <i class="fas fa-external-link-alt" style="font-size: 10px; margin-left: 5px;"></i>
+                        </a>
+                    </td>
+                    <td>{{ tienda.total_productos or 0 }}</td>
+                    <td>{{ tienda.pedidos_hoy or 0 }}</td>
+                    <td>${{ "{:,.0f}".format(tienda.ventas_hoy or 0) }}</td>
+                    <td>
+                        <span class="badge badge-{% if tienda.activo %}success{% else %}danger{% endif %}">
+                            {{ 'Activa' if tienda.activo else 'Inactiva' }}
+                        </span>
+                    </td>
+                    <td >
+                        <div style="display: flex; gap: 5px;">
+                            <button class="btn btn-sm btn-secondary" onclick="verDetalle({{ tienda.id }})" title="Ver detalle">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-primary" onclick="editarTienda({{ tienda.id }})" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-{% if tienda.activo %}warning{% else %}success{% endif %}"
+                                    onclick="toggleEstado({{ tienda.id }}, {{ 'true' if tienda.activo else 'false' }})"
+                                    title="{{ 'Desactivar' if tienda.activo else 'Activar' }}">
+                                <i class="fas fa-{% if tienda.activo %}pause{% else %}play{% endif %}"></i>
+                            </button>
+                            <a href="/superadmin/tiendas/{{ tienda.id }}/usuarios" class="btn btn-sm btn-secondary" title="Usuarios">
+                                <i class="fas fa-users"></i>
+                            </a>
+                            <button class="btn btn-sm btn-danger" onclick="eliminarTienda({{ tienda.id }}, '{{ tienda.nombre }}')" title="Eliminar">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+
+<!-- Modal Nueva/Editar Tienda -->
+<div id="modalTienda" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-store"></i> <span id="modalTitulo">Nueva Tienda</span></h3>
+            <button class="modal-close" onclick="cerrarModal()">&times;</button>
+        </div>
+        <form id="formTienda" onsubmit="guardarTienda(event)">
+            <div class="modal-body">
+            <input type="hidden" id="tiendaId" name="id">
+            <div class="form-group">
+                <label><i class="fas fa-building" style="color: var(--primary);"></i> Nombre de la Tienda *</label>
+                <input type="text" id="tiendaNombre" name="nombre" class="form-control" placeholder="Ej: Mi Restaurante" required>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-globe" style="color: var(--secondary);"></i> Subdominio * <small style="color: var(--gray);">(sin espacios, solo letras y numeros)</small></label>
+                <div style="display: flex; align-items: center;">
+                    <input type="text" id="tiendaSubdominio" name="subdominio" class="form-control"
+                           pattern="[a-z0-9-]+" style="border-radius: 8px 0 0 8px; border-right: none;" placeholder="mi-restaurante" required>
+                    <span style="background: linear-gradient(135deg, var(--light) 0%, #e2e8f0 100%); padding: 12px 16px; border: 1px solid var(--border); border-left: none; border-radius: 0 8px 8px 0; font-size: 13px; color: var(--gray); font-weight: 500;">
+                        .vxplay.online
+                    </span>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label><i class="fas fa-envelope" style="color: var(--warning);"></i> Email de Contacto</label>
+                    <input type="email" id="tiendaEmail" name="email" class="form-control" placeholder="contacto@email.com">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-phone" style="color: var(--success);"></i> Telefono</label>
+                    <input type="text" id="tiendaTelefono" name="telefono" class="form-control" placeholder="+57 300 123 4567">
+                </div>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-map-marker-alt" style="color: var(--danger);"></i> Direccion</label>
+                <input type="text" id="tiendaDireccion" name="direccion" class="form-control" placeholder="Calle 123 #45-67, Ciudad">
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-clock" style="color: var(--primary);"></i> Horario</label>
+                <input type="text" id="tiendaHorario" name="horario" class="form-control" placeholder="Ej: Lun-Sab 10:00-22:00">
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-quote-left" style="color: var(--secondary);"></i> Slogan / Descripción del Hero</label>
+                <input type="text" id="tiendaSlogan" name="slogan" class="form-control" placeholder="Ej: ¡El mejor sabor de la ciudad!" maxlength="150">
+                <small style="color: var(--gray);">Se muestra en el banner principal. Máximo 150 caracteres.</small>
+            </div>
+
+            <!-- Categorías -->
+            <div style="border-top: 1px solid var(--gray-light); margin: 20px 0; padding-top: 20px;">
+                <h4 style="margin-bottom: 15px;"><i class="fas fa-tags"></i> Categorías del Menú</h4>
+                <p style="color: var(--gray); font-size: 13px; margin-bottom: 15px;">Selecciona las categorías que tendrá disponible esta tienda:</p>
+                <div id="categoriasSelector" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; max-height: 280px; overflow-y: auto; padding: 10px; background: var(--light); border-radius: 8px;">
+                    <div style="text-align: center; color: var(--gray); padding: 20px; grid-column: 1/-1;">Cargando categorías...</div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="seleccionarTodasCategorias()">
+                        <i class="fas fa-check-double"></i> Todas
+                    </button>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="deseleccionarTodasCategorias()">
+                        <i class="fas fa-times"></i> Ninguna
+                    </button>
+                    <span id="contadorCategorias" style="margin-left: auto; color: var(--gray); font-size: 13px;">0 seleccionadas</span>
+                </div>
+            </div>
+
+            <!-- Logo y Colores -->
+            <div style="border-top: 1px solid var(--gray-light); margin: 20px 0; padding-top: 20px;">
+                <h4 style="margin-bottom: 15px;"><i class="fas fa-palette"></i> Personalización</h4>
+
+                <div class="form-group">
+                    <label>Logo de la Tienda</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <div id="logoPreview" style="width: 60px; height: 60px; border-radius: 12px; background: var(--gray-light); display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                            <i class="fas fa-image" style="color: var(--gray); font-size: 24px;"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <input type="file" id="tiendaLogoFile" accept="image/*" style="display: none;" onchange="previewLogo(this)">
+                            <input type="hidden" id="tiendaLogo" name="logo">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('tiendaLogoFile').click()">
+                                <i class="fas fa-upload"></i> Subir Logo
+                            </button>
+                            <button type="button" class="btn btn-sm" onclick="quitarLogo()" style="margin-left: 5px;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <small style="color: var(--gray);">Recomendado: 200x200px, PNG o JPG</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Banner Promocional</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <div id="bannerPreview" style="width: 200px; height: 80px; border-radius: 8px; background: var(--gray-light); display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                            <i class="fas fa-image" style="color: var(--gray); font-size: 24px;"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <input type="file" id="tiendaBannerFile" accept="image/*" style="display: none;" onchange="previewBanner(this)">
+                            <input type="hidden" id="tiendaBanner" name="banner_url">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('tiendaBannerFile').click()">
+                                <i class="fas fa-upload"></i> Subir Banner
+                            </button>
+                            <button type="button" class="btn btn-sm" onclick="quitarBanner()" style="margin-left: 5px;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <small style="color: var(--gray);">Recomendado: 1200x400px, PNG o JPG. Se muestra en la tienda del cliente.</small>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Color Primario</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="color" id="tiendaColorPrimario" name="color_primario" value="#ff441f" style="width: 50px; height: 40px; border: none; border-radius: 8px; cursor: pointer;">
+                            <input type="text" id="tiendaColorPrimarioText" class="form-control" value="#ff441f" style="flex: 1;" onchange="document.getElementById('tiendaColorPrimario').value = this.value">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Color Secundario</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="color" id="tiendaColorSecundario" name="color_secundario" value="#00b14f" style="width: 50px; height: 40px; border: none; border-radius: 8px; cursor: pointer;">
+                            <input type="text" id="tiendaColorSecundarioText" class="form-control" value="#00b14f" style="flex: 1;" onchange="document.getElementById('tiendaColorSecundario').value = this.value">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Color Terciario (Fondo)</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="color" id="tiendaColorTerciario" name="color_terciario" value="#f5f5f5" style="width: 50px; height: 40px; border: none; border-radius: 8px; cursor: pointer;">
+                            <input type="text" id="tiendaColorTerciarioText" class="form-control" value="#f5f5f5" style="flex: 1;" onchange="document.getElementById('tiendaColorTerciario').value = this.value">
+                        </div>
+                    </div>
+                </div>
+            </div>
+<!-- Configuracion de Domicilios -->            <div style="border-top: 1px solid var(--gray-light); margin: 20px 0; padding-top: 20px;">                <h4 style="margin-bottom: 15px;"><i class="fas fa-motorcycle"></i> Configuracion de Domicilios</h4>                <div class="form-group">                    <label><i class="fas fa-dollar-sign" style="color: var(--success);"></i> Costo de Domicilio</label>                    <input type="number" id="tiendaCostoDomicilio" name="costo_domicilio" class="form-control" value="0" min="0" step="100" placeholder="Ej: 5000">                    <small style="color: var(--gray);">Este valor se sumara al total del pedido cuando sea a domicilio</small>                </div>                <div class="form-group">                    <label><i class="fas fa-shopping-basket" style="color: var(--warning);"></i> Pedido Minimo</label>                    <input type="number" id="tiendaPedidoMinimo" name="pedido_minimo" class="form-control" value="0" min="0" step="1000" placeholder="Ej: 20000">                    <small style="color: var(--gray);">Valor minimo requerido para realizar un pedido</small>                </div>            </div>
+<!-- Modo de Pedido -->
+            <div style="border-top: 1px solid var(--gray-light); margin: 20px 0; padding-top: 20px;">
+                <h4 style="margin-bottom: 15px;"><i class="fas fa-user-tie"></i> Modo de Pedido</h4>
+                <div class="form-group">
+                    <label><i class="fas fa-shopping-cart" style="color: var(--primary);"></i> Tipo de Catalogo</label>
+                    <select id="tiendaModoPedido" name="modo_pedido" class="form-control">
+                        <option value="normal">Normal - Cliente puede hacer pedidos</option>
+                        <option value="mesero">Solo Mesero - Catalogo estatico (sin carrito)</option>
+                    </select>
+                    <small style="color: var(--gray);">En modo "Solo Mesero" el cliente solo ve el catalogo, los pedidos los hace el mesero desde el panel admin.</small>
+                </div>
+            </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal()">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> <span class="btn-text">Guardar Tienda</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Detalle Tienda -->
+<div id="modalDetalle" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-info-circle"></i> <span id="detalleNombre"></span></h3>
+            <button class="modal-close" onclick="cerrarModalDetalle()">&times;</button>
+        </div>
+        <div id="detalleContenido" class="modal-body">
+            <!-- Se llena dinamicamente -->
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="cerrarModalDetalle()">
+                <i class="fas fa-times"></i> Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function abrirModalNueva() {
+    document.getElementById('modalTitulo').textContent = 'Nueva Tienda';
+    document.getElementById('formTienda').reset();
+    document.getElementById('tiendaId').value = '';
+    resetFormPersonalizacion();
+    categoriasSeleccionadas = [];
+    cargarCategoriasMaestras();
+    document.getElementById('modalTienda').classList.add('active');
+}
+
+function cerrarModal() {
+    document.getElementById('modalTienda').classList.remove('active');
+}
+
+function cerrarModalDetalle() {
+    document.getElementById('modalDetalle').classList.remove('active');
+}
+
+function editarTienda(id) {
+    showLoading('Cargando datos...');
+    // Cargar categorias maestras primero
+    fetch('/superadmin/api/categorias-maestras')
+        .then(r => r.json())
+        .then(cats => { categoriasMaestras = cats; });
+    fetch(`/superadmin/api/tiendas/${id}`)
+        .then(r => r.json())
+        .then(tienda => {
+            hideLoading();
+            document.getElementById('modalTitulo').textContent = 'Editar Tienda';
+            document.getElementById('tiendaId').value = tienda.id;
+            document.getElementById('tiendaNombre').value = tienda.nombre;
+            document.getElementById('tiendaSubdominio').value = tienda.subdominio;
+            document.getElementById('tiendaEmail').value = tienda.email || '';
+            document.getElementById('tiendaTelefono').value = tienda.telefono || '';
+            document.getElementById('tiendaDireccion').value = tienda.direccion || '';
+            document.getElementById('tiendaHorario').value = tienda.horario || '';
+        document.getElementById('tiendaSlogan').value = tienda.slogan || '';
+
+            // Logo y colores
+            setLogoPreview(tienda.logo || '');
+            const colorPrimario = tienda.color_primario || '#ff441f';
+            const colorSecundario = tienda.color_secundario || '#00b14f';
+            const colorTerciario = tienda.color_terciario || '#f5f5f5';
+            document.getElementById('tiendaColorPrimario').value = colorPrimario;
+            document.getElementById('tiendaColorPrimarioText').value = colorPrimario;
+            document.getElementById('tiendaColorSecundario').value = colorSecundario;
+            document.getElementById('tiendaColorSecundarioText').value = colorSecundario;
+            document.getElementById('tiendaColorTerciario').value = colorTerciario;
+            document.getElementById('tiendaColorTerciarioText').value = colorTerciario;
+
+            // Costo domicilio, pedido minimo y modo pedido
+            document.getElementById('tiendaCostoDomicilio').value = tienda.costo_domicilio || 0;
+            document.getElementById('tiendaPedidoMinimo').value = tienda.pedido_minimo || 0;
+            document.getElementById('tiendaModoPedido').value = tienda.modo_pedido || 'normal';
+
+            document.getElementById('modalTienda').classList.add('active');
+        })
+        .catch(() => {
+            hideLoading();
+            showToast('error', 'Error', 'No se pudieron cargar los datos');
+        });
+}
+
+function guardarTienda(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const data = new FormData(form);
+    const id = data.get('id');
+    const url = id ? `/superadmin/api/tiendas/${id}` : '/superadmin/api/tiendas';
+    const method = id ? 'PUT' : 'POST';
+
+    setButtonLoading(btn, true);
+
+    fetch(url, {
+        method: method,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(Object.fromEntries(data))
+    })
+    .then(r => r.json())
+    .then(result => {
+        setButtonLoading(btn, false);
+        if (result.success) {
+            if (!id && result.credenciales) {
+                mostrarCredenciales(result.credenciales);
+            } else {
+                showToast('success', 'Guardado', id ? 'Tienda actualizada correctamente' : 'Tienda creada correctamente');
+                setTimeout(() => location.reload(), 1000);
+            }
+        } else {
+            showToast('error', 'Error', result.error || 'Error al guardar');
+        }
+    })
+    .catch(() => {
+        setButtonLoading(btn, false);
+        showToast('error', 'Error', 'Error de conexion');
+    });
+}
+
+function toggleEstado(id, activa) {
+    const accion = activa ? 'desactivar' : 'activar';
+    if (confirm(`¿Seguro que desea ${accion} esta tienda?`)) {
+        showLoading(activa ? 'Desactivando...' : 'Activando...');
+        fetch(`/superadmin/api/tiendas/${id}/toggle`, {method: 'POST'})
+            .then(r => r.json())
+            .then(result => {
+                hideLoading();
+                if (result.success) {
+                    showToast('success', 'Actualizado', `Tienda ${activa ? 'desactivada' : 'activada'}`);
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('error', 'Error', result.error || 'No se pudo actualizar');
+                }
+            })
+            .catch(() => {
+                hideLoading();
+                showToast('error', 'Error', 'Error de conexion');
+            });
+    }
+}
+
+function verDetalle(id) {
+    showLoading('Cargando detalle...');
+    fetch(`/superadmin/api/tiendas/${id}/detalle`)
+        .then(r => r.json())
+        .then(data => {
+            hideLoading();
+            document.getElementById('detalleNombre').textContent = data.nombre;
+            document.getElementById('detalleContenido').innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px;">
+                    <div class="stat-card">
+                        <div class="stat-value">${data.total_productos}</div>
+                        <div class="stat-label">Productos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.total_usuarios}</div>
+                        <div class="stat-label">Usuarios</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.pedidos_hoy}</div>
+                        <div class="stat-label">Pedidos Hoy</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">$${data.ventas_hoy.toLocaleString()}</div>
+                        <div class="stat-label">Ventas Hoy</div>
+                    </div>
+                </div>
+                <div style="padding: 0 20px 20px;">
+                    <p><strong>Subdominio:</strong> <a href="https://${data.subdominio}.vxplay.online" target="_blank">${data.subdominio}.vxplay.online</a></p>
+                    <p><strong>Email:</strong> ${data.email || 'No definido'}</p>
+                    <p><strong>Telefono:</strong> ${data.telefono || 'No definido'}</p>
+                    <p><strong>Direccion:</strong> ${data.direccion || 'No definida'}</p>
+                    <p><strong>Creada:</strong> ${data.fecha_creacion || 'N/A'}</p>
+                </div>
+            `;
+            document.getElementById('modalDetalle').classList.add('active');
+        })
+        .catch(() => {
+            hideLoading();
+            showToast('error', 'Error', 'No se pudo cargar el detalle');
+        });
+}
+
+// Filtros
+document.getElementById('buscarTienda').addEventListener('input', filtrarTabla);
+document.getElementById('filtroEstado').addEventListener('change', filtrarTabla);
+
+function filtrarTabla() {
+    const busqueda = document.getElementById('buscarTienda').value.toLowerCase();
+    const estado = document.getElementById('filtroEstado').value;
+    const filas = document.querySelectorAll('tbody tr');
+
+    filas.forEach(fila => {
+        const texto = fila.textContent.toLowerCase();
+        const esActiva = fila.querySelector('.badge-success') !== null;
+
+        let mostrar = texto.includes(busqueda);
+        if (estado === 'activa') mostrar = mostrar && esActiva;
+        if (estado === 'inactiva') mostrar = mostrar && !esActiva;
+
+        fila.style.display = mostrar ? '' : 'none';
+    });
+}
+
+function eliminarTienda(id, nombre) {
+    if (confirm(`¿ELIMINAR la tienda "${nombre}"?\n\nEsto borrara TODOS los datos: productos, pedidos, usuarios, etc.\n\nEsta accion NO se puede deshacer.`)) {
+        showLoading('Eliminando tienda...');
+        fetch(`/superadmin/api/tiendas/${id}`, {method: 'DELETE'})
+            .then(r => r.json())
+            .then(result => {
+                hideLoading();
+                if (result.success) {
+                    showToast('success', 'Eliminado', 'Tienda eliminada correctamente');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('error', 'Error', result.error || 'No se pudo eliminar');
+                }
+            })
+            .catch(() => {
+                hideLoading();
+                showToast('error', 'Error', 'Error de conexion');
+            });
+    }
+}
+
+// Logo preview y manejo
+function previewLogo(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        if (file.size > 2 * 1024 * 1024) {
+            showToast('warning', 'Advertencia', 'El logo no debe superar 2MB');
+            input.value = '';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('logoPreview').innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
+            document.getElementById('tiendaLogo').value = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function quitarLogo() {
+    document.getElementById('logoPreview').innerHTML = '<i class="fas fa-image" style="color: var(--gray); font-size: 24px;"></i>';
+    document.getElementById('tiendaLogo').value = '';
+    document.getElementById('tiendaLogoFile').value = '';
+}
+
+function setLogoPreview(url) {
+    if (url) {
+        document.getElementById('logoPreview').innerHTML = `<img src="${url}" style="width: 100%; height: 100%; object-fit: cover;">`;
+        document.getElementById('tiendaLogo').value = url;
+    } else {
+        quitarLogo();
+    }
+}
+
+// Banner preview y manejo
+function previewBanner(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        if (file.size > 5 * 1024 * 1024) {
+            showToast('warning', 'Advertencia', 'El banner no debe superar 5MB');
+            input.value = '';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('bannerPreview').innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
+            document.getElementById('tiendaBanner').value = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function quitarBanner() {
+    document.getElementById('bannerPreview').innerHTML = '<i class="fas fa-image" style="color: var(--gray); font-size: 24px;"></i>';
+    document.getElementById('tiendaBanner').value = '';
+    document.getElementById('tiendaBannerFile').value = '';
+}
+
+function setBannerPreview(url) {
+    if (url) {
+        document.getElementById('bannerPreview').innerHTML = `<img src="${url}" style="width: 100%; height: 100%; object-fit: cover;">`;
+        document.getElementById('tiendaBanner').value = url;
+    } else {
+        quitarBanner();
+    }
+}
+
+// Sincronizar color pickers con inputs de texto
+document.getElementById('tiendaColorPrimario').addEventListener('input', function() {
+    document.getElementById('tiendaColorPrimarioText').value = this.value;
+});
+document.getElementById('tiendaColorSecundario').addEventListener('input', function() {
+    document.getElementById('tiendaColorSecundarioText').value = this.value;
+});
+
+document.getElementById('tiendaColorTerciario').addEventListener('input', function() {
+    document.getElementById('tiendaColorSecundarioText').value = this.value;
+});
+
+// Reset del formulario para nueva tienda
+function resetFormPersonalizacion() {
+    quitarLogo();
+    quitarBanner();
+    document.getElementById('tiendaColorPrimario').value = '#ff441f';
+    document.getElementById('tiendaColorPrimarioText').value = '#ff441f';
+    document.getElementById('tiendaColorSecundario').value = '#00b14f';
+    document.getElementById('tiendaColorSecundarioText').value = '#00b14f';
+    document.getElementById('tiendaColorTerciario').value = '#f5f5f5';
+    document.getElementById('tiendaColorTerciarioText').value = '#f5f5f5';
+}
+
+// ============ CATEGORIAS ============
+let categoriasMaestras = [];
+let categoriasSeleccionadas = [];
+
+function cargarCategoriasMaestras() {
+    fetch('/superadmin/api/categorias-maestras')
+        .then(r => r.json())
+        .then(cats => {
+            categoriasMaestras = cats;
+            renderizarCategorias();
+        })
+        .catch(() => {
+            document.getElementById('categoriasSelector').innerHTML =
+                '<div style="text-align: center; color: var(--danger); padding: 20px; grid-column: 1/-1;">Error al cargar categorías</div>';
+        });
+}
+
+function renderizarCategorias(asignadas = []) {
+    const container = document.getElementById('categoriasSelector');
+    container.innerHTML = '';
+
+    // Limpiar y asignar solo las categorias pasadas como parametro
+    categoriasSeleccionadas = [...asignadas];
+
+    categoriasMaestras.forEach(cat => {
+        const seleccionada = categoriasSeleccionadas.includes(cat.id);
+
+        const item = document.createElement('div');
+        item.className = 'categoria-item' + (seleccionada ? ' seleccionada' : '');
+        item.dataset.id = cat.id;
+        item.onclick = () => toggleCategoria(item, cat.id);
+        item.innerHTML = `
+            <img src="${cat.icono_url}" alt="${cat.nombre}" onerror="this.src='https://cdn-icons-png.flaticon.com/128/1046/1046857.png'" style="width: 32px; height: 32px; object-fit: contain;">
+            <span style="font-size: 11px; text-align: center; margin-top: 4px;">${cat.nombre}</span>
+            <div class="check-mark"><i class="fas fa-check"></i></div>
+        `;
+        container.appendChild(item);
+    });
+
+    actualizarContadorCategorias();
+}
+
+function toggleCategoria(el, id) {
+    el.classList.toggle('seleccionada');
+    if (el.classList.contains('seleccionada')) {
+        if (!categoriasSeleccionadas.includes(id)) categoriasSeleccionadas.push(id);
+    } else {
+        categoriasSeleccionadas = categoriasSeleccionadas.filter(c => c !== id);
+    }
+    actualizarContadorCategorias();
+}
+
+function seleccionarTodasCategorias() {
+    categoriasSeleccionadas = categoriasMaestras.map(c => c.id);
+    document.querySelectorAll('.categoria-item').forEach(el => el.classList.add('seleccionada'));
+    actualizarContadorCategorias();
+}
+
+function deseleccionarTodasCategorias() {
+    categoriasSeleccionadas = [];
+    document.querySelectorAll('.categoria-item').forEach(el => el.classList.remove('seleccionada'));
+    actualizarContadorCategorias();
+}
+
+function actualizarContadorCategorias() {
+    document.getElementById('contadorCategorias').textContent = categoriasSeleccionadas.length + ' seleccionadas';
+}
+
+// Categorias ya integradas en abrirModalNueva
+
+// Modificar editarTienda para cargar categorias asignadas
+const originalEditarTienda = editarTienda;
+editarTienda = function(id) {
+    showLoading('Cargando datos...');
+    Promise.all([
+        fetch(`/superadmin/api/tiendas/${id}`).then(r => r.json()),
+        fetch(`/superadmin/api/tiendas/${id}/categorias`).then(r => r.json())
+    ])
+    .then(([tienda, catsAsignadas]) => {
+        hideLoading();
+        document.getElementById('modalTitulo').textContent = 'Editar Tienda';
+        document.getElementById('tiendaId').value = tienda.id;
+        document.getElementById('tiendaNombre').value = tienda.nombre;
+        document.getElementById('tiendaSubdominio').value = tienda.subdominio;
+        document.getElementById('tiendaEmail').value = tienda.email || '';
+        document.getElementById('tiendaTelefono').value = tienda.telefono || '';
+        document.getElementById('tiendaDireccion').value = tienda.direccion || '';
+        document.getElementById('tiendaHorario').value = tienda.horario || '';
+        document.getElementById('tiendaSlogan').value = tienda.slogan || '';
+
+        // Logo y colores
+        setLogoPreview(tienda.logo || '');
+        const colorPrimario = tienda.color_primario || '#ff441f';
+        const colorSecundario = tienda.color_secundario || '#00b14f';
+        const colorTerciario = tienda.color_terciario || '#f5f5f5';
+        document.getElementById('tiendaColorPrimario').value = colorPrimario;
+        document.getElementById('tiendaColorPrimarioText').value = colorPrimario;
+        document.getElementById('tiendaColorSecundario').value = colorSecundario;
+        document.getElementById('tiendaColorSecundarioText').value = colorSecundario;
+        document.getElementById('tiendaColorTerciario').value = colorTerciario;
+        document.getElementById('tiendaColorTerciarioText').value = colorTerciario;
+
+        // Banner
+        setBannerPreview(tienda.banner_url || '');
+
+        // Costo domicilio y pedido minimo
+        document.getElementById('tiendaCostoDomicilio').value = tienda.costo_domicilio || 0;
+        document.getElementById('tiendaPedidoMinimo').value = tienda.pedido_minimo || 0;
+        document.getElementById('tiendaModoPedido').value = tienda.modo_pedido || 'normal';
+
+        // Categorias - cargar las asignadas
+        categoriasSeleccionadas = catsAsignadas.filter(c => c.asignada).map(c => c.id);
+        fetch('/superadmin/api/categorias-maestras')
+            .then(r => r.json())
+            .then(cats => {
+                categoriasMaestras = cats;
+                renderizarCategorias(categoriasSeleccionadas);
+            });
+
+        document.getElementById('modalTienda').classList.add('active');
+    })
+    .catch(() => {
+        hideLoading();
+        showToast('error', 'Error', 'No se pudieron cargar los datos');
+    });
+};
+
+// Modificar guardarTienda para incluir categorias
+const originalGuardarTienda = guardarTienda;
+guardarTienda = function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const data = new FormData(form);
+    const id = data.get('id');
+    const url = id ? `/superadmin/api/tiendas/${id}` : '/superadmin/api/tiendas';
+    const method = id ? 'PUT' : 'POST';
+
+    // Agregar categorias seleccionadas
+    const bodyData = Object.fromEntries(data);
+    bodyData.categoria_ids = categoriasSeleccionadas;
+
+    setButtonLoading(btn, true);
+
+    fetch(url, {
+        method: method,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(bodyData)
+    })
+    .then(r => r.json())
+    .then(result => {
+        setButtonLoading(btn, false);
+        if (result.success) {
+            if (!id && result.credenciales) {
+                mostrarCredenciales(result.credenciales);
+            } else {
+                showToast('success', 'Guardado', id ? 'Tienda actualizada correctamente' : 'Tienda creada correctamente');
+                setTimeout(() => location.reload(), 1000);
+            }
+        } else {
+            showToast('error', 'Error', result.error || 'Error al guardar');
+        }
+    })
+    .catch(() => {
+        setButtonLoading(btn, false);
+        showToast('error', 'Error', 'Error de conexion');
+    });
+};
+
+
+function mostrarCredenciales(creds) {
+    cerrarModal();
+    const html = '<div style="text-align: center; padding: 20px;">' +
+        '<div style="width: 70px; height: 70px; background: linear-gradient(135deg, var(--success) 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px;"><i class="fas fa-check" style="font-size: 32px; color: white;"></i></div>' +
+        '<h2 style="color: var(--success); margin-bottom: 20px;">Tienda Creada Exitosamente!</h2>' +
+        '<p style="color: var(--gray); margin-bottom: 25px;">Guarda estas credenciales, no se mostraran de nuevo</p>' +
+        '<div style="background: var(--light); border-radius: 12px; padding: 20px; text-align: left; margin-bottom: 15px;">' +
+        '<h4 style="margin-bottom: 15px; color: var(--success);"><i class="fas fa-user-shield"></i> Usuario Admin</h4>' +
+        '<div style="display: flex; justify-content: space-between; margin-bottom: 8px;">' +
+        '<span style="color: var(--gray);">Email:</span>' +
+        '<strong style="font-family: monospace;">' + creds.admin.email + '</strong></div>' +
+        '<div style="display: flex; justify-content: space-between;">' +
+        '<span style="color: var(--gray);">Password:</span>' +
+        '<strong style="font-family: monospace; color: var(--primary);">' + creds.admin.password + '</strong></div></div>' +
+        '<div style="background: var(--light); border-radius: 12px; padding: 20px; text-align: left; margin-bottom: 15px;">' +
+        '<h4 style="margin-bottom: 15px; color: var(--danger);"><i class="fas fa-utensils"></i> Usuario Cocina</h4>' +
+        '<div style="display: flex; justify-content: space-between; margin-bottom: 8px;">' +
+        '<span style="color: var(--gray);">Email:</span>' +
+        '<strong style="font-family: monospace;">' + creds.cocina.email + '</strong></div>' +
+        '<div style="display: flex; justify-content: space-between;">' +
+        '<span style="color: var(--gray);">Password:</span>' +
+        '<strong style="font-family: monospace; color: var(--primary);">' + creds.cocina.password + '</strong></div></div>' +
+        '<div style="background: var(--light); border-radius: 12px; padding: 20px; text-align: left;">' +
+        '<h4 style="margin-bottom: 15px; color: var(--warning);"><i class="fas fa-clipboard-list"></i> Usuario Mesero</h4>' +
+        '<div style="display: flex; justify-content: space-between; margin-bottom: 8px;">' +
+        '<span style="color: var(--gray);">Email:</span>' +
+        '<strong style="font-family: monospace;">' + creds.mesero.email + '</strong></div>' +
+        '<div style="display: flex; justify-content: space-between;">' +
+        '<span style="color: var(--gray);">Password:</span>' +
+        '<strong style="font-family: monospace; color: var(--primary);">' + creds.mesero.password + '</strong></div></div></div>';
+    
+    document.getElementById('detalleNombre').innerHTML = '<i class="fas fa-key"></i> Credenciales de Acceso';
+    document.getElementById('detalleContenido').innerHTML = html;
+    document.getElementById('modalDetalle').classList.add('active');
+    document.querySelector('#modalDetalle .btn-secondary').onclick = function() {
+        cerrarModalDetalle();
+        location.reload();
+    };
+}
+
+// Estilos CSS para categorias
+const estilosCategorias = document.createElement('style');
+estilosCategorias.textContent = `
+.categoria-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 5px;
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+.categoria-item:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+.categoria-item.seleccionada {
+    border-color: var(--success);
+    background: #dcfce7;
+}
+.categoria-item .check-mark {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--success);
+    color: white;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+}
+.categoria-item.seleccionada .check-mark {
+    display: flex;
+}
+`;
+document.head.appendChild(estilosCategorias);
+
+    // ============ GESTIÓN DE CONTRASEÑAS ============
+    let tiendaIdActual = null;
+
+    function mostrarUsuarios(tiendaId, nombreTienda) {
+        tiendaIdActual = tiendaId;
+        document.getElementById('nombreTiendaUsuarios').textContent = nombreTienda;
+
+        fetch(`/superadmin/api/tiendas/${tiendaId}/usuarios`)
+            .then(r => r.json())
+            .then(usuarios => {
+                let html = '<div class="list-group">';
+                usuarios.forEach(u => {
+                    html += `
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${u.nombre}</strong><br>
+                                <small class="text-muted">${u.email}</small>
+                                <span class="badge bg-${u.rol === 'admin' ? 'primary' : u.rol === 'mesero' ? 'info' : 'secondary'} ms-2">${u.rol}</span>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="cambiarPassword(${u.id}, '${u.email}')">
+                                <i class="bi bi-key"></i> Cambiar
+                            </button>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                document.getElementById('listaUsuarios').innerHTML = html;
+                new bootstrap.Modal(document.getElementById('modalUsuarios')).show();
+            })
+            .catch(e => showToast('error', 'Error', 'No se pudieron cargar los usuarios'));
+    }
+
+    function cambiarPassword(usuarioId, email) {
+        document.getElementById('usuarioIdPassword').value = usuarioId;
+        document.getElementById('emailUsuarioPassword').textContent = email;
+        document.getElementById('nuevaPassword').value = '';
+        bootstrap.Modal.getInstance(document.getElementById('modalUsuarios')).hide();
+        new bootstrap.Modal(document.getElementById('modalNuevaPassword')).show();
+    }
+
+    function generarPasswordRandom() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        let password = '';
+        for (let i = 0; i < 8; i++) {
+            password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        document.getElementById('nuevaPassword').value = password;
+    }
+
+    function guardarNuevaPassword() {
+        const usuarioId = document.getElementById('usuarioIdPassword').value;
+        const password = document.getElementById('nuevaPassword').value;
+
+        if (password.length < 4) {
+            showToast('error', 'Error', 'La contraseña debe tener al menos 4 caracteres');
+            return;
+        }
+
+        fetch(`/superadmin/api/usuarios/${usuarioId}/cambiar-password`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({password: password})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('success', 'Éxito', data.message);
+                bootstrap.Modal.getInstance(document.getElementById('modalNuevaPassword')).hide();
+            } else {
+                showToast('error', 'Error', data.error);
+            }
+        })
+        .catch(e => showToast('error', 'Error', 'No se pudo cambiar la contraseña'));
+    }
+
+    function resetearTodasPasswords() {
+        if (!confirm('¿Resetear TODAS las contraseñas de esta tienda?\n\nSe generarán nuevas contraseñas aleatorias.')) return;
+
+        fetch(`/superadmin/api/tiendas/${tiendaIdActual}/reset-passwords`, {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('modalUsuarios')).hide();
+                    mostrarCredencialesGeneradas(data.credenciales);
+                } else {
+                    showToast('error', 'Error', data.error);
+                }
+            })
+            .catch(e => showToast('error', 'Error', 'No se pudieron resetear las contraseñas'));
+    }
+
+    function mostrarCredencialesGeneradas(credenciales) {
+        let html = '<table class="table table-sm"><thead><tr><th>Usuario</th><th>Rol</th><th>Contraseña</th></tr></thead><tbody>';
+        credenciales.forEach(c => {
+            html += `<tr>
+                <td><small>${c.email}</small></td>
+                <td><span class="badge bg-secondary">${c.rol}</span></td>
+                <td><code>${c.password}</code></td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('listaCredenciales').innerHTML = html;
+        window.credencialesGeneradas = credenciales;
+        new bootstrap.Modal(document.getElementById('modalCredenciales')).show();
+    }
+
+    function copiarCredenciales() {
+        let texto = 'CREDENCIALES DE ACCESO\n';
+        texto += '========================\n\n';
+        window.credencialesGeneradas.forEach(c => {
+            texto += `${c.rol.toUpperCase()}:\n`;
+            texto += `  Email: ${c.email}\n`;
+            texto += `  Contraseña: ${c.password}\n\n`;
+        });
+        navigator.clipboard.writeText(texto).then(() => {
+            showToast('success', 'Copiado', 'Credenciales copiadas al portapapeles');
+        });
+    }
+
+    </script>
+
+<!-- Modal Usuarios/Contraseñas -->
+<div class="modal fade" id="modalUsuarios" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-key me-2"></i>Usuarios de <span id="nombreTiendaUsuarios"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="listaUsuarios"></div>
+                <hr>
+                <button class="btn btn-warning w-100" onclick="resetearTodasPasswords()">
+                    <i class="bi bi-arrow-repeat me-2"></i>Resetear TODAS las contraseñas
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nueva Contraseña -->
+<div class="modal fade" id="modalNuevaPassword" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cambiar Contraseña</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="usuarioIdPassword">
+                <p><strong>Usuario:</strong> <span id="emailUsuarioPassword"></span></p>
+                <div class="mb-3">
+                    <label class="form-label">Nueva Contraseña</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="nuevaPassword" placeholder="Mínimo 4 caracteres">
+                        <button class="btn btn-outline-secondary" type="button" onclick="generarPasswordRandom()">
+                            <i class="bi bi-shuffle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary" onclick="guardarNuevaPassword()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Credenciales Generadas -->
+<div class="modal fade" id="modalCredenciales" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i>Credenciales Generadas</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Importante:</strong> Guarda estas credenciales, no se mostrarán de nuevo.
+                </div>
+                <div id="listaCredenciales"></div>
+                <button class="btn btn-outline-primary w-100 mt-3" onclick="copiarCredenciales()">
+                    <i class="bi bi-clipboard me-2"></i>Copiar todas las credenciales
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

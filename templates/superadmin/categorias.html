@@ -1,0 +1,302 @@
+{% extends 'superadmin/base.html' %}
+
+{% block title %}Categorias Maestras{% endblock %}
+{% block page_title %}Categorias Maestras{% endblock %}
+{% block page_subtitle %}Administrar catalogo de categorias con iconos{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px;">
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">Total Categorias</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.activas }}</div>
+        <div class="stat-label">Activas</div>
+    </div>
+</div>
+
+<!-- Toolbar -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" id="buscarCategoria" placeholder="Buscar categoria..." class="form-control" style="width: 250px;">
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalNueva()">
+            <i class="fas fa-plus"></i> Nueva Categoria
+        </button>
+    </div>
+</div>
+
+<!-- Grid de Categorias -->
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-tags"></i> Catalogo de Categorias</h3>
+    </div>
+    <div class="card-body">
+        <div id="categoriasGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px;">
+            {% for cat in categorias %}
+            <div class="categoria-card {% if not cat.activo %}inactiva{% endif %}" data-id="{{ cat.id }}" data-nombre="{{ cat.nombre|lower }}">
+                <div class="categoria-icono">
+                    <img src="{{ cat.icono_url }}" alt="{{ cat.nombre }}" onerror="this.src='https://cdn-icons-png.flaticon.com/128/1046/1046857.png'">
+                </div>
+                <div class="categoria-nombre">{{ cat.nombre }}</div>
+                <div class="categoria-acciones">
+                    <button class="btn btn-sm btn-secondary" onclick="editarCategoria({{ cat.id }})" title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-{% if cat.activo %}warning{% else %}success{% endif %}"
+                            onclick="toggleCategoria({{ cat.id }})"
+                            title="{{ 'Desactivar' if cat.activo else 'Activar' }}">
+                        <i class="fas fa-{% if cat.activo %}eye-slash{% else %}eye{% endif %}"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Seccion Asignar a Tiendas -->
+<div class="card" style="margin-top: 20px;">
+    <div class="card-header">
+        <h3><i class="fas fa-store"></i> Asignar Categorias a Tiendas</h3>
+    </div>
+    <div class="card-body">
+        <p style="color: var(--gray); margin-bottom: 15px;">Selecciona una tienda para ver y asignar sus categorias:</p>
+        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            {% for tienda in tiendas %}
+            <a href="/superadmin/tiendas/{{ tienda.id }}/categorias" class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 30px; height: 30px; background: var(--primary); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">
+                    {{ tienda.nombre[0] }}
+                </div>
+                {{ tienda.nombre }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nueva/Editar Categoria -->
+<div id="modalCategoria" class="modal">
+    <div class="modal-content" style="max-width: 450px; background: white; border-radius: 16px; overflow: hidden;">
+        <div class="modal-header" style="background: var(--primary); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <h3 id="modalTitulo" style="margin: 0; font-size: 18px;">Nueva Categoria</h3>
+            <button class="modal-close" onclick="cerrarModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 18px;">&times;</button>
+        </div>
+        <form id="formCategoria" onsubmit="guardarCategoria(event)" style="padding: 24px;">
+            <input type="hidden" id="categoriaId">
+            <input type="hidden" id="categoriaIcono">
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Nombre de la Categoria *</label>
+                <input type="text" id="categoriaNombre" class="form-control" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Icono de la Categoria *</label>
+                <div style="display: flex; gap: 16px; align-items: center;">
+                    <div id="iconPreviewContainer" style="width: 80px; height: 80px; border: 2px dashed #ccc; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #f9f9f9; flex-shrink: 0;">
+                        <img id="iconPreview" src="" style="max-width: 100%; max-height: 100%; display: none; object-fit: contain;">
+                        <i class="fas fa-image" id="iconPlaceholder" style="color: #ccc; font-size: 28px;"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <input type="file" id="categoriaIconoFile" accept="image/*" onchange="previewIcon(this)" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px;">
+                        <small style="color: #888; display: block; margin-top: 6px;">PNG o JPG (max 2MB)</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Orden</label>
+                <input type="number" id="categoriaOrden" class="form-control" value="0" min="0" style="width: 100px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px;">
+            </div>
+
+            <div style="display: flex; gap: 12px;">
+                <button type="submit" class="btn btn-primary" style="flex: 1; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal()" style="padding: 14px 24px; background: #f0f0f0; color: #666; border: none; border-radius: 8px; font-size: 15px; cursor: pointer;">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.categoria-card {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    text-align: center;
+    border: 2px solid var(--gray-light);
+    transition: all 0.2s;
+}
+.categoria-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+.categoria-card.inactiva {
+    opacity: 0.5;
+    filter: grayscale(1);
+}
+.categoria-icono {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 10px;
+}
+.categoria-icono img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.categoria-nombre {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 10px;
+    color: var(--dark);
+}
+.categoria-acciones {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+}
+</style>
+
+<script>
+let iconoBase64 = null;
+
+// Preview de imagen al seleccionar archivo
+function previewIcon(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            iconoBase64 = e.target.result;
+            document.getElementById('iconPreview').src = iconoBase64;
+            document.getElementById('iconPreview').style.display = 'block';
+            document.getElementById('iconPlaceholder').style.display = 'none';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function abrirModalNueva() {
+    document.getElementById('modalTitulo').textContent = 'Nueva Categoria';
+    document.getElementById('formCategoria').reset();
+    document.getElementById('categoriaId').value = '';
+    document.getElementById('categoriaIcono').value = '';
+    iconoBase64 = null;
+    document.getElementById('iconPreview').style.display = 'none';
+    document.getElementById('iconPlaceholder').style.display = 'block';
+    document.getElementById('modalCategoria').classList.add('active');
+}
+
+function cerrarModal() {
+    document.getElementById('modalCategoria').classList.remove('active');
+}
+
+function editarCategoria(id) {
+    showLoading('Cargando...');
+    fetch(`/superadmin/api/categorias-maestras/${id}`)
+        .then(r => r.json())
+        .then(cat => {
+            hideLoading();
+            document.getElementById('modalTitulo').textContent = 'Editar Categoria';
+            document.getElementById('categoriaId').value = cat.id;
+            document.getElementById('categoriaNombre').value = cat.nombre;
+            document.getElementById('categoriaIcono').value = cat.icono_url || '';
+            document.getElementById('categoriaOrden').value = cat.orden || 0;
+
+            // Mostrar icono actual
+            if (cat.icono_url) {
+                document.getElementById('iconPreview').src = cat.icono_url;
+                document.getElementById('iconPreview').style.display = 'block';
+                document.getElementById('iconPlaceholder').style.display = 'none';
+                iconoBase64 = null; // Se usara la URL existente
+            } else {
+                document.getElementById('iconPreview').style.display = 'none';
+                document.getElementById('iconPlaceholder').style.display = 'block';
+            }
+
+            document.getElementById('modalCategoria').classList.add('active');
+        })
+        .catch(err => {
+            hideLoading();
+            console.error('Error cargando categoria:', err);
+            showToast('error', 'Error', 'No se pudo cargar la categoria');
+        });
+}
+
+function guardarCategoria(e) {
+    e.preventDefault();
+    const id = document.getElementById('categoriaId').value;
+
+    const data = {
+        nombre: document.getElementById('categoriaNombre').value,
+        orden: parseInt(document.getElementById('categoriaOrden').value) || 0
+    };
+
+    // Si hay imagen nueva en base64, enviarla
+    if (iconoBase64) {
+        data.icono_base64 = iconoBase64;
+    } else {
+        // Usar URL existente
+        data.icono_url = document.getElementById('categoriaIcono').value;
+    }
+
+    const url = id ? `/superadmin/api/categorias-maestras/${id}` : '/superadmin/api/categorias-maestras';
+    const method = id ? 'PUT' : 'POST';
+
+    showLoading('Guardando...');
+    fetch(url, {
+        method: method,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(result => {
+        hideLoading();
+        if (result.success) {
+            showToast('success', 'Guardado', 'Categoria guardada correctamente');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('error', 'Error', result.error || 'Error al guardar');
+        }
+    })
+    .catch(err => {
+        hideLoading();
+        console.error('Error guardando:', err);
+        showToast('error', 'Error', 'Error de conexion');
+    });
+}
+
+function toggleCategoria(id) {
+    showLoading('Actualizando...');
+    fetch(`/superadmin/api/categorias-maestras/${id}/toggle`, {method: 'POST'})
+        .then(r => r.json())
+        .then(result => {
+            hideLoading();
+            if (result.success) {
+                showToast('success', 'Actualizado', 'Estado actualizado');
+                setTimeout(() => location.reload(), 500);
+            } else {
+                showToast('error', 'Error', result.error);
+            }
+        })
+        .catch(err => {
+            hideLoading();
+            console.error('Error toggle:', err);
+            showToast('error', 'Error', 'Error de conexion');
+        });
+}
+
+// Busqueda
+document.getElementById('buscarCategoria').addEventListener('input', function() {
+    const busqueda = this.value.toLowerCase();
+    document.querySelectorAll('.categoria-card').forEach(card => {
+        const nombre = card.dataset.nombre;
+        card.style.display = nombre.includes(busqueda) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

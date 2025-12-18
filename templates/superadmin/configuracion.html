@@ -1,0 +1,220 @@
+{% extends 'superadmin/base.html' %}
+
+{% block title %}Configuracion{% endblock %}
+{% block page_title %}Configuracion del Sistema{% endblock %}
+{% block page_subtitle %}Ajustes generales y estadisticas{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+    <!-- Estadísticas del Sistema -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-server"></i> Estado del Sistema</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; gap: 15px;">
+                <div style="display: flex; justify-content: space-between; padding: 15px; background: var(--light); border-radius: 8px;">
+                    <span><i class="fas fa-store" style="color: var(--primary); margin-right: 10px;"></i> Tiendas</span>
+                    <strong>{{ stats.total_tiendas }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 15px; background: var(--light); border-radius: 8px;">
+                    <span><i class="fas fa-users" style="color: var(--success); margin-right: 10px;"></i> Usuarios</span>
+                    <strong>{{ stats.total_usuarios }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 15px; background: var(--light); border-radius: 8px;">
+                    <span><i class="fas fa-receipt" style="color: var(--warning); margin-right: 10px;"></i> Pedidos Totales</span>
+                    <strong>{{ stats.total_pedidos }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 15px; background: var(--light); border-radius: 8px;">
+                    <span><i class="fas fa-utensils" style="color: var(--danger); margin-right: 10px;"></i> Productos</span>
+                    <strong>{{ stats.total_productos }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuración General -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-cog"></i> Configuracion General</h3>
+        </div>
+        <div class="card-body">
+            <form id="formConfig" onsubmit="guardarConfig(event)">
+                <div class="form-group">
+                    <label>Nombre del Sistema</label>
+                    <input type="text" id="config_nombre_sistema" class="form-control"
+                           value="{{ config.get('nombre_sistema', 'RestaurantOS') }}">
+                </div>
+                <div class="form-group">
+                    <label>Email de Soporte</label>
+                    <input type="email" id="config_email_soporte" class="form-control"
+                           value="{{ config.get('email_soporte', '') }}" placeholder="soporte@ejemplo.com">
+                </div>
+                <div class="form-group">
+                    <label>Moneda</label>
+                    <select id="config_moneda" class="form-control">
+                        <option value="COP" {% if config.get('moneda') == 'COP' %}selected{% endif %}>COP - Peso Colombiano</option>
+                        <option value="USD" {% if config.get('moneda') == 'USD' %}selected{% endif %}>USD - Dolar</option>
+                        <option value="MXN" {% if config.get('moneda') == 'MXN' %}selected{% endif %}>MXN - Peso Mexicano</option>
+                        <option value="EUR" {% if config.get('moneda') == 'EUR' %}selected{% endif %}>EUR - Euro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Zona Horaria</label>
+                    <select id="config_timezone" class="form-control">
+                        <option value="America/Bogota" {% if config.get('timezone') == 'America/Bogota' %}selected{% endif %}>America/Bogota (COL)</option>
+                        <option value="America/Mexico_City" {% if config.get('timezone') == 'America/Mexico_City' %}selected{% endif %}>America/Mexico_City (MX)</option>
+                        <option value="America/New_York" {% if config.get('timezone') == 'America/New_York' %}selected{% endif %}>America/New_York (US East)</option>
+                        <option value="America/Los_Angeles" {% if config.get('timezone') == 'America/Los_Angeles' %}selected{% endif %}>America/Los_Angeles (US West)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-save"></i> Guardar Configuracion
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Seguridad -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-shield-alt"></i> Seguridad</h3>
+        </div>
+        <div class="card-body">
+            <form id="formSeguridad" onsubmit="guardarSeguridad(event)">
+                <div class="form-group">
+                    <label>Tiempo de Sesion (minutos)</label>
+                    <input type="number" id="config_session_timeout" class="form-control"
+                           value="{{ config.get('session_timeout', '60') }}" min="5" max="480">
+                </div>
+                <div class="form-group">
+                    <label>Intentos de Login Maximos</label>
+                    <input type="number" id="config_max_login_attempts" class="form-control"
+                           value="{{ config.get('max_login_attempts', '5') }}" min="3" max="10">
+                </div>
+                <div class="form-group">
+                    <label>Longitud Minima Contrasena</label>
+                    <input type="number" id="config_min_password_length" class="form-control"
+                           value="{{ config.get('min_password_length', '6') }}" min="6" max="20">
+                </div>
+                <button type="submit" class="btn btn-warning" style="width: 100%;">
+                    <i class="fas fa-lock"></i> Actualizar Seguridad
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Acciones -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-tools"></i> Mantenimiento</h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; gap: 15px;">
+                <div style="background: var(--light); padding: 20px; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0;"><i class="fas fa-database" style="color: var(--primary);"></i> Base de Datos</h4>
+                    <p style="color: var(--gray); font-size: 14px; margin-bottom: 15px;">
+                        Optimizar y limpiar la base de datos para mejorar el rendimiento.
+                    </p>
+                    <button class="btn btn-secondary btn-sm" onclick="optimizarDB()">
+                        <i class="fas fa-broom"></i> Optimizar
+                    </button>
+                </div>
+
+                <div style="background: var(--light); padding: 20px; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0;"><i class="fas fa-trash" style="color: var(--danger);"></i> Limpiar Logs</h4>
+                    <p style="color: var(--gray); font-size: 14px; margin-bottom: 15px;">
+                        Eliminar logs de auditoria antiguos (mas de 90 dias).
+                    </p>
+                    <button class="btn btn-danger btn-sm" onclick="limpiarLogs()">
+                        <i class="fas fa-eraser"></i> Limpiar
+                    </button>
+                </div>
+
+                <div style="background: #dcfce7; padding: 20px; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0;"><i class="fas fa-check-circle" style="color: var(--success);"></i> Sistema Activo</h4>
+                    <p style="color: #166534; font-size: 14px; margin: 0;">
+                        El sistema esta funcionando correctamente.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info Tabla Config -->
+<div class="card" style="margin-top: 20px;">
+    <div class="card-body" style="background: #fef3c7; border-radius: 8px;">
+        <h4 style="margin: 0 0 10px 0; color: #92400e;"><i class="fas fa-info-circle"></i> Crear tabla de configuracion</h4>
+        <p style="margin: 0 0 10px 0; color: #92400e; font-size: 14px;">
+            Si las configuraciones no se guardan, ejecuta este SQL:
+        </p>
+        <pre style="background: #1e293b; color: #10b981; padding: 15px; border-radius: 4px; font-size: 12px; overflow-x: auto; margin: 0;">CREATE TABLE IF NOT EXISTS configuracion_sistema (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    clave VARCHAR(100) UNIQUE,
+    valor TEXT
+);</pre>
+    </div>
+</div>
+
+<script>
+function guardarConfig(e) {
+    e.preventDefault();
+    const data = {
+        nombre_sistema: document.getElementById('config_nombre_sistema').value,
+        email_soporte: document.getElementById('config_email_soporte').value,
+        moneda: document.getElementById('config_moneda').value,
+        timezone: document.getElementById('config_timezone').value
+    };
+
+    fetch('/superadmin/api/configuracion', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            alert('Configuracion guardada correctamente');
+        } else {
+            alert('Error: ' + (result.error || 'No se pudo guardar'));
+        }
+    });
+}
+
+function guardarSeguridad(e) {
+    e.preventDefault();
+    const data = {
+        session_timeout: document.getElementById('config_session_timeout').value,
+        max_login_attempts: document.getElementById('config_max_login_attempts').value,
+        min_password_length: document.getElementById('config_min_password_length').value
+    };
+
+    fetch('/superadmin/api/configuracion', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            alert('Configuracion de seguridad actualizada');
+        } else {
+            alert('Error: ' + (result.error || 'No se pudo guardar'));
+        }
+    });
+}
+
+function optimizarDB() {
+    if (confirm('Esto optimizara la base de datos. Puede tomar unos segundos.')) {
+        alert('Funcion disponible proximamente');
+    }
+}
+
+function limpiarLogs() {
+    if (confirm('Eliminar logs de mas de 90 dias?')) {
+        alert('Funcion disponible proximamente');
+    }
+}
+</script>
+{% endblock %}

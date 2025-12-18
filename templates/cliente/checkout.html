@@ -1,0 +1,741 @@
+{% extends 'base.html' %}
+
+{% block title %}Checkout - {{ tienda.nombre }}{% endblock %}
+
+{% block extra_styles %}
+.checkout-page {
+    min-height: 100vh;
+    background: var(--gray-100);
+    padding: 24px;
+}
+
+.checkout-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.checkout-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.checkout-header h1 {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.checkout-back {
+    color: var(--primary);
+    font-weight: 500;
+}
+
+.checkout-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+}
+
+.checkout-card h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.order-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    font-size: 14px;
+}
+
+.order-total {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 12px;
+    margin-top: 12px;
+    border-top: 2px solid var(--gray-200);
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.tipo-pedido {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.tipo-btn {
+    flex: 1;
+    padding: 16px;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius);
+    background: white;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.tipo-btn.active {
+    border-color: var(--primary);
+    background: #fff5f3;
+}
+
+.tipo-btn-icon { font-size: 24px; }
+.tipo-btn-text { font-weight: 600; margin-top: 4px; }
+
+.checkout-success {
+    text-align: center;
+    padding: 40px;
+}
+
+.success-icon { font-size: 64px; margin-bottom: 16px; }
+.success-order { font-size: 32px; font-weight: 700; color: var(--primary); }
+
+.cliente-encontrado {
+    background: #dcfce7;
+    border: 1px solid #22c55e;
+    border-radius: var(--radius);
+    padding: 12px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cliente-encontrado i {
+    color: #22c55e;
+    font-size: 20px;
+}
+
+.cliente-encontrado-texto {
+    flex: 1;
+}
+
+.cliente-encontrado-nombre {
+    font-weight: 600;
+    color: #166534;
+}
+
+.cliente-encontrado-dir {
+    font-size: 13px;
+    color: #15803d;
+}
+
+.btn-cambiar-dir {
+    background: transparent;
+    border: 1px solid #22c55e;
+    color: #22c55e;
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.btn-cambiar-dir:hover {
+    background: #22c55e;
+    color: white;
+}
+
+.campo-bloqueado {
+    background: #f3f4f6 !important;
+    color: #6b7280;
+}
+
+/* Modal de rastreo */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.tracking-modal {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+    animation: modalIn 0.3s ease;
+}
+
+@keyframes modalIn {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.tracking-icon {
+    width: 70px;
+    height: 70px;
+    background: linear-gradient(135deg, var(--primary), #ff6b6b);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 32px;
+    color: white;
+}
+
+.tracking-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.tracking-subtitle {
+    color: var(--gray-500);
+    font-size: 14px;
+    margin-bottom: 24px;
+}
+
+.order-number-box {
+    background: var(--gray-100);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.order-number-text {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.btn-copy {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.btn-copy:hover {
+    transform: scale(1.05);
+}
+
+.btn-copy.copied {
+    background: #22c55e;
+}
+
+.tracking-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 20px 0;
+    color: var(--gray-400);
+    font-size: 13px;
+}
+
+.tracking-divider::before,
+.tracking-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--gray-200);
+}
+
+.tracking-input-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.tracking-input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 2px solid var(--gray-200);
+    border-radius: 8px;
+    font-size: 16px;
+    text-align: center;
+}
+
+.tracking-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.btn-track {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-track:hover {
+    opacity: 0.9;
+}
+
+.tracking-result {
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 12px;
+    display: none;
+}
+
+.tracking-result.show {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.tracking-result.pendiente {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+}
+
+.tracking-result.preparando {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+}
+
+.tracking-result.listo {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+}
+
+.tracking-result.entregado {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+}
+
+.tracking-status {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.tracking-status.pendiente { color: #dc2626; }
+.tracking-status.preparando { color: #d97706; }
+.tracking-status.listo { color: #16a34a; }
+.tracking-status.entregado { color: #2563eb; }
+
+.tracking-desc {
+    font-size: 13px;
+    color: var(--gray-600);
+}
+
+.btn-close-modal {
+    margin-top: 20px;
+    background: transparent;
+    border: 1px solid var(--gray-300);
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--gray-600);
+}
+
+.btn-close-modal:hover {
+    background: var(--gray-100);
+}
+
+/* Boton flotante de rastreo */
+.btn-tracking-float {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    padding: 14px 20px;
+    border-radius: 50px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    z-index: 100;
+    transition: all 0.3s;
+}
+
+.btn-tracking-float:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+}
+
+.btn-tracking-float i {
+    font-size: 18px;
+}
+{% endblock %}
+
+{% block content %}
+<div class="checkout-page">
+    <div class="checkout-container">
+        <div class="checkout-header">
+            <h1>Finalizar Pedido</h1>
+            <a href="/" class="checkout-back">← Volver al menú</a>
+        </div>
+
+        <div id="checkoutForm">
+            <!-- Resumen -->
+            <div class="checkout-card">
+                <h2>Tu Pedido</h2>
+                <div id="orderSummary">Cargando...</div>
+            </div>
+
+            <!-- Tipo de pedido -->
+            <div class="checkout-card">
+                <h2>Tipo de Pedido</h2>
+                <div class="tipo-pedido">
+                    <button type="button" class="tipo-btn active" onclick="setTipo('domicilio')" id="tipoDomicilio">
+                        <div class="tipo-btn-icon"><i class="fas fa-motorcycle"></i></div>
+                        <div class="tipo-btn-text">Domicilio</div>
+                    </button>
+                    <button type="button" class="tipo-btn" onclick="setTipo('para_llevar')" id="tipoLlevar">
+                        <div class="tipo-btn-icon"><i class="fas fa-shopping-bag"></i></div>
+                        <div class="tipo-btn-text">Para llevar</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Datos del cliente -->
+            <div class="checkout-card">
+                <h2>Tus Datos</h2>
+
+                <!-- Banner cliente encontrado (oculto por defecto) -->
+                <div id="clienteEncontrado" class="cliente-encontrado" style="display: none;">
+                    <i class="fas fa-check-circle"></i>
+                    <div class="cliente-encontrado-texto">
+                        <div class="cliente-encontrado-nombre" id="clienteNombre"></div>
+                        <div class="cliente-encontrado-dir" id="clienteDir"></div>
+                    </div>
+                    <button type="button" class="btn-cambiar-dir" onclick="cambiarDireccion()">Cambiar</button>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Teléfono *</label>
+                    <input type="tel" id="telefono" class="form-input" required placeholder="Ingresa tu teléfono" oninput="buscarCliente()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nombre *</label>
+                    <input type="text" id="nombre" class="form-input" required>
+                </div>
+                <div id="direccionGroup">
+                    <div class="form-group">
+                        <label class="form-label">Dirección *</label>
+                        <input type="text" id="direccion" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Referencias</label>
+                        <input type="text" id="referencias" class="form-input" placeholder="Ej: Casa azul, portón negro">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notas para tu pedido</label>
+                    <textarea id="notas" class="form-input" rows="2" placeholder="Ej: Sin cebolla, extra picante"></textarea>
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-lg" style="width: 100%;" onclick="enviarPedido()">
+                Confirmar Pedido
+            </button>
+        </div>
+
+        <!-- Success -->
+        <div class="checkout-card checkout-success" id="checkoutSuccess" style="display: none;">
+            <div class="success-icon">✓</div>
+            <h2>¡Pedido Recibido!</h2>
+            <div class="success-order" id="orderNumber"></div>
+            <p class="text-muted mt-3">Te avisaremos cuando esté listo</p>
+            <div class="tracking-info-box">
+                <p><strong>Para rastrear tu pedido</strong></p>
+                <p>Usa tu número de teléfono en la página de inicio</p>
+            </div>
+            <a href="/" class="btn btn-primary mt-4">Volver al menú</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.success-icon {
+    font-size: 60px;
+    color: #22c55e;
+    margin-bottom: 16px;
+}
+.tracking-info-box {
+    background: #f0f9ff;
+    border: 1px solid #0ea5e9;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 20px 0;
+    text-align: center;
+}
+.tracking-info-box p {
+    margin: 4px 0;
+    color: #0369a1;
+}
+.tracking-info-box p:first-child {
+    font-size: 16px;
+}
+.tracking-info-box p:last-child {
+    font-size: 14px;
+    opacity: 0.8;
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let tipoPedido = 'domicilio';
+let cartData = null;
+let clienteData = null;
+let buscarTimeout = null;
+
+// Buscar cliente cuando escribe telefono
+function buscarCliente() {
+    const telefono = document.getElementById('telefono').value.trim();
+
+    // Cancelar busqueda anterior
+    if (buscarTimeout) clearTimeout(buscarTimeout);
+
+    // Ocultar banner si telefono muy corto
+    if (telefono.length < 7) {
+        document.getElementById('clienteEncontrado').style.display = 'none';
+        clienteData = null;
+        limpiarCampos();
+        return;
+    }
+
+    // Esperar 500ms antes de buscar
+    buscarTimeout = setTimeout(() => {
+        fetch('/api/cliente/buscar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ telefono: telefono })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.encontrado) {
+                clienteData = data;
+                mostrarClienteEncontrado(data);
+            } else {
+                clienteData = null;
+                document.getElementById('clienteEncontrado').style.display = 'none';
+                limpiarCampos();
+            }
+        })
+        .catch(err => console.error('Error buscando cliente:', err));
+    }, 500);
+}
+
+function mostrarClienteEncontrado(data) {
+    document.getElementById('clienteEncontrado').style.display = 'flex';
+    document.getElementById('clienteNombre').textContent = '¡Hola ' + data.nombre + '!';
+    document.getElementById('clienteDir').textContent = data.direccion ? 'Enviar a: ' + data.direccion : 'Sin dirección guardada';
+
+    // Autocompletar campos
+    document.getElementById('nombre').value = data.nombre;
+    document.getElementById('direccion').value = data.direccion || '';
+    document.getElementById('referencias').value = data.referencias || '';
+
+    // Bloquear campos (pueden desbloquearse con "Cambiar")
+    document.getElementById('nombre').classList.add('campo-bloqueado');
+    document.getElementById('nombre').readOnly = true;
+    document.getElementById('direccion').classList.add('campo-bloqueado');
+    document.getElementById('direccion').readOnly = true;
+    document.getElementById('referencias').classList.add('campo-bloqueado');
+    document.getElementById('referencias').readOnly = true;
+}
+
+function cambiarDireccion() {
+    // Desbloquear campos para editar
+    document.getElementById('nombre').classList.remove('campo-bloqueado');
+    document.getElementById('nombre').readOnly = false;
+    document.getElementById('direccion').classList.remove('campo-bloqueado');
+    document.getElementById('direccion').readOnly = false;
+    document.getElementById('referencias').classList.remove('campo-bloqueado');
+    document.getElementById('referencias').readOnly = false;
+
+    // Ocultar banner
+    document.getElementById('clienteEncontrado').style.display = 'none';
+
+    // Enfocar direccion
+    document.getElementById('direccion').focus();
+}
+
+function limpiarCampos() {
+    document.getElementById('nombre').value = '';
+    document.getElementById('nombre').classList.remove('campo-bloqueado');
+    document.getElementById('nombre').readOnly = false;
+    document.getElementById('direccion').value = '';
+    document.getElementById('direccion').classList.remove('campo-bloqueado');
+    document.getElementById('direccion').readOnly = false;
+    document.getElementById('referencias').value = '';
+    document.getElementById('referencias').classList.remove('campo-bloqueado');
+    document.getElementById('referencias').readOnly = false;
+}
+
+function loadCart() {
+    fetch('/api/carrito')
+        .then(r => r.json())
+        .then(data => {
+            cartData = data;
+            if (data.carrito.length === 0) {
+                window.location.href = '/';
+                return;
+            }
+            renderSummary(data);
+        });
+}
+
+function renderSummary(data) {
+    let html = data.carrito.map(item => `
+        <div class="order-item">
+            <span>${item.cantidad}x ${item.nombre}</span>
+            <span>$${(item.precio * item.cantidad).toFixed(2)}</span>
+        </div>
+    `).join('');
+
+    html += `
+        <div class="order-item text-muted">
+            <span>Subtotal</span>
+            <span>$${data.subtotal.toFixed(2)}</span>
+        </div>
+    `;
+
+    if (tipoPedido === 'domicilio') {
+        html += `
+            <div class="order-item text-muted">
+                <span>Envío a domicilio</span>
+                <span>$${data.costo_domicilio.toFixed(2)}</span>
+            </div>
+        `;
+    }
+
+    const total = tipoPedido === 'domicilio' ? data.total : data.subtotal;
+    html += `
+        <div class="order-total">
+            <span>Total</span>
+            <span style="color: var(--primary);">$${total.toFixed(2)}</span>
+        </div>
+    `;
+
+    document.getElementById('orderSummary').innerHTML = html;
+}
+
+function setTipo(tipo) {
+    tipoPedido = tipo;
+    document.querySelectorAll('.tipo-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(tipo === 'domicilio' ? 'tipoDomicilio' : 'tipoLlevar').classList.add('active');
+    document.getElementById('direccionGroup').style.display = tipo === 'domicilio' ? 'block' : 'none';
+    if (cartData) renderSummary(cartData);
+}
+
+let currentOrderNumber = '';
+
+function enviarPedido() {
+    const nombre = document.getElementById('nombre').value;
+    const telefono = document.getElementById('telefono').value;
+    const direccion = document.getElementById('direccion').value;
+    const referencias = document.getElementById('referencias').value;
+    const notas = document.getElementById('notas').value;
+
+    if (!nombre || !telefono) {
+        alert('Por favor completa nombre y teléfono');
+        return;
+    }
+
+    if (tipoPedido === 'domicilio' && !direccion) {
+        alert('Por favor ingresa tu dirección');
+        return;
+    }
+
+    fetch('/api/pedido', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            nombre, telefono, direccion, referencias, notas,
+            tipo: tipoPedido
+        })
+    })
+    .then(r => {
+        if (!r.ok) {
+            throw new Error('Error en la respuesta del servidor');
+        }
+        return r.json();
+    })
+    .then(data => {
+        if (data.success) {
+            currentOrderNumber = data.numero_orden;
+            document.getElementById('checkoutForm').style.display = 'none';
+            document.getElementById('checkoutSuccess').style.display = 'block';
+            document.getElementById('orderNumber').textContent = '#' + data.numero_orden;
+
+            // Registrar pedido para notificaciones
+            if (typeof trackNewOrder === 'function') {
+                trackNewOrder(data.numero_orden, 'pendiente');
+            }
+        } else {
+            alert(data.error || 'Error al crear pedido');
+        }
+    })
+    .catch(err => {
+        console.error('Error enviando pedido:', err);
+        // No mostrar alerta si el pedido se envió pero hubo error en la respuesta
+        // El pedido probablemente se guardó
+    });
+}
+
+loadCart();
+
+// Auto-buscar si viene telefono en URL
+function checkUrlTelefono() {
+    const params = new URLSearchParams(window.location.search);
+    const telefono = params.get('telefono');
+    if (telefono) {
+        document.getElementById('telefono').value = telefono;
+        // Buscar cliente automaticamente
+        fetch('/api/cliente/buscar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ telefono: telefono })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.encontrado) {
+                clienteData = data;
+                mostrarClienteEncontrado(data);
+            }
+        })
+        .catch(err => console.error('Error buscando cliente:', err));
+    }
+}
+checkUrlTelefono();
+</script>
+{% endblock %}

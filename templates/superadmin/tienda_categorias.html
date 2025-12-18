@@ -1,0 +1,212 @@
+{% extends 'superadmin/base.html' %}
+
+{% block title %}Categorias - {{ tienda.nombre }}{% endblock %}
+{% block page_title %}Categorias de {{ tienda.nombre }}{% endblock %}
+{% block page_subtitle %}Selecciona las categorias que tendra esta tienda{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<div style="margin-bottom: 20px;">
+    <a href="/superadmin/tiendas" class="btn btn-secondary btn-sm">
+        <i class="fas fa-arrow-left"></i> Volver a Tiendas
+    </a>
+    <a href="/superadmin/categorias" class="btn btn-secondary btn-sm" style="margin-left: 10px;">
+        <i class="fas fa-tags"></i> Ver Catalogo Maestro
+    </a>
+</div>
+
+<!-- Info Tienda -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="display: flex; align-items: center; gap: 15px; padding: 15px 20px;">
+        <div style="width: 50px; height: 50px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px;">
+            {{ tienda.nombre[0] }}
+        </div>
+        <div>
+            <h3 style="margin: 0;">{{ tienda.nombre }}</h3>
+            <small style="color: var(--gray);">{{ tienda.subdominio }}.vxplay.online</small>
+        </div>
+        <div style="margin-left: auto; display: flex; gap: 10px;">
+            <span class="badge badge-info" id="contadorAsignadas">0 asignadas</span>
+            <button class="btn btn-primary" onclick="guardarCambios()">
+                <i class="fas fa-save"></i> Guardar Cambios
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Grid de Categorias -->
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3><i class="fas fa-th-large"></i> Seleccionar Categorias</h3>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-sm btn-secondary" onclick="seleccionarTodas()">
+                <i class="fas fa-check-double"></i> Todas
+            </button>
+            <button class="btn btn-sm btn-secondary" onclick="deseleccionarTodas()">
+                <i class="fas fa-times"></i> Ninguna
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="categoriasGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;">
+            {% for cat in categorias %}
+            <div class="categoria-item {% if cat.asignada %}seleccionada{% endif %}"
+                 data-id="{{ cat.id }}"
+                 data-categoria-tienda-id="{{ cat.categoria_tienda_id or '' }}"
+                 onclick="toggleSeleccion(this)">
+                <div class="categoria-check">
+                    <i class="fas fa-check"></i>
+                </div>
+                <img src="{{ cat.icono_url }}" alt="{{ cat.nombre }}" onerror="this.src='https://cdn-icons-png.flaticon.com/128/1046/1046857.png'">
+                <span>{{ cat.nombre }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+.categoria-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px 10px;
+    background: white;
+    border: 2px solid var(--gray-light);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+.categoria-item:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+.categoria-item.seleccionada {
+    border-color: var(--success);
+    background: #dcfce7;
+}
+.categoria-item img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    margin-bottom: 8px;
+}
+.categoria-item span {
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--dark);
+}
+.categoria-check {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--success);
+    color: white;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+}
+.categoria-item.seleccionada .categoria-check {
+    display: flex;
+}
+</style>
+
+<script>
+let cambiosPendientes = false;
+
+function toggleSeleccion(el) {
+    el.classList.toggle('seleccionada');
+    cambiosPendientes = true;
+    actualizarContador();
+}
+
+function seleccionarTodas() {
+    document.querySelectorAll('.categoria-item').forEach(el => {
+        el.classList.add('seleccionada');
+    });
+    cambiosPendientes = true;
+    actualizarContador();
+}
+
+function deseleccionarTodas() {
+    document.querySelectorAll('.categoria-item').forEach(el => {
+        el.classList.remove('seleccionada');
+    });
+    cambiosPendientes = true;
+    actualizarContador();
+}
+
+function actualizarContador() {
+    const count = document.querySelectorAll('.categoria-item.seleccionada').length;
+    document.getElementById('contadorAsignadas').textContent = count + ' asignadas';
+}
+
+function guardarCambios() {
+    const seleccionadas = [];
+    document.querySelectorAll('.categoria-item.seleccionada').forEach(el => {
+        seleccionadas.push(parseInt(el.dataset.id));
+    });
+
+    // Primero quitar las que ya no estan seleccionadas
+    const promesas = [];
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    // Quitar todas las actuales
+    document.querySelectorAll('.categoria-item').forEach(el => {
+        const catTiendaId = el.dataset.categoriaTiendaId;
+        if (catTiendaId && !el.classList.contains('seleccionada')) {
+            promesas.push(
+                fetch('/superadmin/api/tiendas/{{ tienda.id }}/categorias/quitar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken},
+                    body: JSON.stringify({categoria_id: parseInt(catTiendaId)})
+                })
+            );
+        }
+    });
+
+    showLoading('Guardando categorias...');
+
+    // Esperar a que se quiten y luego asignar las nuevas
+    Promise.all(promesas).then(() => {
+        // Asignar las seleccionadas
+        return fetch('/superadmin/api/tiendas/{{ tienda.id }}/categorias/asignar-multiples', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken},
+            body: JSON.stringify({categoria_ids: seleccionadas})
+        });
+    })
+    .then(r => r.json())
+    .then(result => {
+        hideLoading();
+        if (result.success) {
+            showToast('success', 'Guardado', `Se asignaron ${result.asignadas} categorias`);
+            cambiosPendientes = false;
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('error', 'Error', result.error || 'Error al guardar');
+        }
+    })
+    .catch(() => {
+        hideLoading();
+        showToast('error', 'Error', 'Error de conexion');
+    });
+}
+
+// Advertir si hay cambios sin guardar
+window.onbeforeunload = function() {
+    if (cambiosPendientes) {
+        return 'Tienes cambios sin guardar. ¿Seguro que quieres salir?';
+    }
+};
+
+// Inicializar contador
+actualizarContador();
+</script>
+{% endblock %}

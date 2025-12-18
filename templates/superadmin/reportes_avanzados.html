@@ -1,0 +1,372 @@
+{% extends 'superadmin/base.html' %}
+
+{% block title %}Reportes Avanzados{% endblock %}
+{% block page_title %}Reportes Avanzados{% endblock %}
+{% block page_subtitle %}Análisis detallado y exportación de datos{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap; padding: 15px 20px;">
+        <div>
+            <label style="font-size: 12px; color: var(--gray);">Desde</label>
+            <input type="date" id="fechaDesde" class="form-control" value="{{ fecha_desde }}">
+        </div>
+        <div>
+            <label style="font-size: 12px; color: var(--gray);">Hasta</label>
+            <input type="date" id="fechaHasta" class="form-control" value="{{ fecha_hasta }}">
+        </div>
+        <div>
+            <label style="font-size: 12px; color: var(--gray);">Tienda</label>
+            <select id="filtroTienda" class="form-control" style="width: 180px;">
+                <option value="">Todas</option>
+                {% for t in tiendas %}
+                <option value="{{ t.id }}" {% if tienda_seleccionada == t.id %}selected{% endif %}>{{ t.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button class="btn btn-primary" onclick="cargarDatos()" style="margin-top: 18px;">
+            <i class="fas fa-sync"></i> Actualizar
+        </button>
+        <div style="margin-left: auto; display: flex; gap: 10px; margin-top: 18px;">
+            <button class="btn btn-success" onclick="exportarExcel()">
+                <i class="fas fa-file-excel"></i> Exportar Excel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Comparativo Mensual -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-header">
+        <h3><i class="fas fa-chart-line"></i> Comparativo Mensual</h3>
+    </div>
+    <div class="card-body">
+        <div id="comparativoContainer" style="display: flex; gap: 30px; flex-wrap: wrap;">
+            <div class="loading-spinner">Cargando...</div>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Ventas por Hora -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-clock"></i> Ventas por Hora del Día</h3>
+        </div>
+        <div class="card-body">
+            <div id="horasContainer">
+                <div class="loading-spinner">Cargando...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ventas por Día de Semana -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-calendar-week"></i> Ventas por Día de Semana</h3>
+        </div>
+        <div class="card-body">
+            <div id="diasContainer">
+                <div class="loading-spinner">Cargando...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Clientes -->
+<div class="card" style="margin-top: 20px;">
+    <div class="card-header">
+        <h3><i class="fas fa-users"></i> Top 20 Clientes</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div id="clientesContainer">
+            <div class="loading-spinner" style="padding: 30px;">Cargando...</div>
+        </div>
+    </div>
+</div>
+
+<style>
+.loading-spinner {
+    text-align: center;
+    padding: 20px;
+    color: var(--gray);
+}
+.hora-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.hora-label {
+    width: 60px;
+    font-size: 12px;
+    color: var(--gray);
+}
+.hora-bar-container {
+    flex: 1;
+    background: var(--light);
+    border-radius: 4px;
+    height: 24px;
+    overflow: hidden;
+}
+.hora-bar-fill {
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    color: white;
+    font-size: 11px;
+    font-weight: 500;
+    min-width: 0;
+    transition: width 0.3s ease;
+}
+.hora-value {
+    width: 80px;
+    text-align: right;
+    font-size: 12px;
+    font-weight: 600;
+}
+.comparativo-card {
+    flex: 1;
+    min-width: 200px;
+    background: var(--light);
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+}
+.comparativo-card h4 {
+    margin: 0 0 15px 0;
+    color: var(--gray);
+    font-size: 14px;
+}
+.comparativo-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--dark);
+}
+.comparativo-change {
+    margin-top: 8px;
+    font-size: 14px;
+    font-weight: 600;
+}
+.comparativo-change.positive {
+    color: var(--green);
+}
+.comparativo-change.negative {
+    color: var(--danger);
+}
+.dia-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--light);
+}
+.dia-card:last-child {
+    border-bottom: none;
+}
+.dia-nombre {
+    font-weight: 600;
+    width: 100px;
+}
+.dia-stats {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+.dia-pedidos {
+    color: var(--gray);
+    font-size: 13px;
+}
+.dia-ventas {
+    font-weight: 700;
+    color: var(--primary);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    cargarDatos();
+});
+
+function getParams() {
+    const desde = document.getElementById('fechaDesde').value;
+    const hasta = document.getElementById('fechaHasta').value;
+    const tienda = document.getElementById('filtroTienda').value;
+    let params = `desde=${desde}&hasta=${hasta}`;
+    if (tienda) params += `&tienda=${tienda}`;
+    return params;
+}
+
+function cargarDatos() {
+    cargarComparativo();
+    cargarVentasPorHora();
+    cargarVentasPorDia();
+    cargarTopClientes();
+}
+
+function cargarComparativo() {
+    const tienda = document.getElementById('filtroTienda').value;
+    let url = '/superadmin/reportes/api/comparativo-mensual';
+    if (tienda) url += `?tienda=${tienda}`;
+
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('comparativoContainer');
+            container.innerHTML = `
+                <div class="comparativo-card">
+                    <h4>${data.mes_actual.nombre}</h4>
+                    <div class="comparativo-value">$${formatNumber(data.mes_actual.ventas)}</div>
+                    <div class="comparativo-change ${data.cambio.ventas >= 0 ? 'positive' : 'negative'}">
+                        <i class="fas fa-arrow-${data.cambio.ventas >= 0 ? 'up' : 'down'}"></i>
+                        ${Math.abs(data.cambio.ventas)}% vs mes anterior
+                    </div>
+                    <div style="margin-top: 10px; color: var(--gray); font-size: 13px;">
+                        ${data.mes_actual.pedidos} pedidos
+                    </div>
+                </div>
+                <div class="comparativo-card">
+                    <h4>${data.mes_anterior.nombre}</h4>
+                    <div class="comparativo-value">$${formatNumber(data.mes_anterior.ventas)}</div>
+                    <div style="margin-top: 18px; color: var(--gray); font-size: 13px;">
+                        ${data.mes_anterior.pedidos} pedidos
+                    </div>
+                </div>
+                <div class="comparativo-card">
+                    <h4>Ticket Promedio</h4>
+                    <div class="comparativo-value">$${formatNumber(data.mes_actual.ticket_promedio)}</div>
+                    <div style="margin-top: 10px; color: var(--gray); font-size: 13px;">
+                        Mes anterior: $${formatNumber(data.mes_anterior.ticket_promedio)}
+                    </div>
+                </div>
+                <div class="comparativo-card">
+                    <h4>Clientes Únicos</h4>
+                    <div class="comparativo-value">${data.mes_actual.clientes}</div>
+                    <div class="comparativo-change ${data.cambio.clientes >= 0 ? 'positive' : 'negative'}">
+                        <i class="fas fa-arrow-${data.cambio.clientes >= 0 ? 'up' : 'down'}"></i>
+                        ${Math.abs(data.cambio.clientes)}% vs mes anterior
+                    </div>
+                </div>
+            `;
+        })
+        .catch(err => {
+            document.getElementById('comparativoContainer').innerHTML = '<div style="color:red;">Error al cargar datos</div>';
+        });
+}
+
+function cargarVentasPorHora() {
+    const params = getParams();
+    fetch(`/superadmin/reportes/api/ventas-por-hora?${params}`)
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('horasContainer');
+            const maxVentas = Math.max(...data.map(h => h.ventas)) || 1;
+
+            let html = '';
+            // Mostrar solo horas relevantes (7am - 11pm)
+            const horasRelevantes = data.filter(h => h.hora >= 7 && h.hora <= 23);
+
+            horasRelevantes.forEach(hora => {
+                const pct = (hora.ventas / maxVentas * 100);
+                html += `
+                    <div class="hora-bar">
+                        <span class="hora-label">${hora.label}</span>
+                        <div class="hora-bar-container">
+                            <div class="hora-bar-fill" style="width: ${Math.max(pct, 2)}%">
+                                ${hora.pedidos} pedidos
+                            </div>
+                        </div>
+                        <span class="hora-value">$${formatNumber(hora.ventas)}</span>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html || '<div style="text-align:center;color:var(--gray);">Sin datos</div>';
+        });
+}
+
+function cargarVentasPorDia() {
+    const params = getParams();
+    fetch(`/superadmin/reportes/api/ventas-por-dia-semana?${params}`)
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('diasContainer');
+            let html = '';
+
+            data.forEach(dia => {
+                html += `
+                    <div class="dia-card">
+                        <span class="dia-nombre">${dia.nombre}</span>
+                        <div class="dia-stats">
+                            <span class="dia-pedidos">${dia.pedidos} pedidos</span>
+                            <span class="dia-ventas">$${formatNumber(dia.ventas)}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html || '<div style="text-align:center;color:var(--gray);">Sin datos</div>';
+        });
+}
+
+function cargarTopClientes() {
+    const params = getParams();
+    fetch(`/superadmin/reportes/api/top-clientes?${params}`)
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('clientesContainer');
+
+            if (data.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--gray);">Sin datos de clientes</div>';
+                return;
+            }
+
+            let html = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Teléfono</th>
+                            <th>Pedidos</th>
+                            <th>Total Compras</th>
+                            <th>Última Compra</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            data.forEach((cliente, idx) => {
+                html += `
+                    <tr>
+                        <td><strong>${idx + 1}</strong></td>
+                        <td>
+                            <strong>${cliente.nombre || 'Sin nombre'}</strong>
+                            ${cliente.email ? `<br><small style="color:var(--gray);">${cliente.email}</small>` : ''}
+                        </td>
+                        <td>${cliente.telefono || '-'}</td>
+                        <td>${cliente.pedidos}</td>
+                        <td><strong>$${formatNumber(cliente.total)}</strong></td>
+                        <td>${cliente.ultima_compra || '-'}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        });
+}
+
+function exportarExcel() {
+    const params = getParams();
+    window.location.href = `/superadmin/reportes/exportar/excel?${params}`;
+}
+
+function formatNumber(num) {
+    return new Intl.NumberFormat('es-CO', {maximumFractionDigits: 0}).format(num || 0);
+}
+</script>
+{% endblock %}

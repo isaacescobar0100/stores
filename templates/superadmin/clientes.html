@@ -1,0 +1,200 @@
+{% extends 'superadmin/base.html' %}
+
+{% block title %}Clientes{% endblock %}
+{% block page_title %}Gestión de Clientes{% endblock %}
+{% block page_subtitle %}Ver todos los clientes registrados en el sistema{% endblock %}
+
+{% block content %}
+<!-- Toolbar -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" id="buscarCliente" placeholder="Buscar cliente..." class="form-control" style="width: 250px;" oninput="filtrarClientes()">
+            <select id="filtroTienda" class="form-control" style="width: 180px;" onchange="filtrarClientes()">
+                <option value="">Todas las tiendas</option>
+                {% for t in tiendas %}
+                <option value="{{ t.id }}">{{ t.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button class="btn btn-success" onclick="exportarClientes()">
+            <i class="fas fa-download"></i> Exportar CSV
+        </button>
+    </div>
+</div>
+
+<!-- Estadísticas -->
+<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">Total Clientes</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-shopping-cart"></i></div>
+        <div class="stat-value">{{ stats.con_pedidos }}</div>
+        <div class="stat-label">Con Pedidos</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="fas fa-dollar-sign"></i></div>
+        <div class="stat-value">${{ "{:,.0f}".format(stats.total_gastado) }}</div>
+        <div class="stat-label">Total Gastado</div>
+    </div>
+</div>
+
+<!-- Tabla de Clientes -->
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-users"></i> Listado de Clientes</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table" id="tablaClientes">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Cliente</th>
+                    <th>Tienda</th>
+                    <th>Teléfono</th>
+                    <th>Pedidos</th>
+                    <th>Total Gastado</th>
+                    <th>Registro</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cliente in clientes %}
+                <tr data-tienda="{{ cliente.tienda_id }}">
+                    <td>#{{ cliente.id }}</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 40px; height: 40px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                                {{ cliente.nombre[0] if cliente.nombre else 'C' }}
+                            </div>
+                            <div>
+                                <strong>{{ cliente.nombre }}</strong><br>
+                                <small style="color: var(--gray);">{{ cliente.email or 'Sin email' }}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span style="background: var(--primary-light); color: var(--primary); padding: 2px 8px; border-radius: 4px; font-size: 12px;">
+                            {{ cliente.tienda_nombre }}
+                        </span>
+                    </td>
+                    <td>{{ cliente.telefono or 'N/A' }}</td>
+                    <td>
+                        <span class="badge badge-{% if cliente.total_pedidos > 5 %}success{% elif cliente.total_pedidos > 0 %}info{% else %}secondary{% endif %}">
+                            {{ cliente.total_pedidos }} pedidos
+                        </span>
+                    </td>
+                    <td><strong>${{ "{:,.0f}".format(cliente.total_gastado) }}</strong></td>
+                    <td><small>{{ cliente.fecha_registro[:10] if cliente.fecha_registro else 'N/A' }}</small></td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" onclick="verCliente({{ cliente.id }})" title="Ver detalle">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Detalle Cliente -->
+<div id="modalCliente" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-user"></i> Detalle del Cliente</h3>
+            <button class="modal-close" onclick="cerrarModal()">&times;</button>
+        </div>
+        <div id="detalleCliente">
+            <!-- Se llena dinámicamente -->
+        </div>
+    </div>
+</div>
+
+<script>
+function verCliente(id) {
+    fetch(`/superadmin/api/clientes/${id}`)
+        .then(r => r.json())
+        .then(cliente => {
+            let pedidosHtml = cliente.pedidos.length > 0
+                ? cliente.pedidos.map(p => `
+                    <tr>
+                        <td>#${p.numero_orden}</td>
+                        <td>$${p.total.toLocaleString()}</td>
+                        <td><span class="badge badge-${p.estado === 'entregado' ? 'success' : 'info'}">${p.estado}</span></td>
+                        <td><small>${p.fecha_pedido ? p.fecha_pedido.substring(0, 16) : 'N/A'}</small></td>
+                    </tr>
+                `).join('')
+                : '<tr><td colspan="4" style="text-align: center; color: var(--gray);">Sin pedidos</td></tr>';
+
+            document.getElementById('detalleCliente').innerHTML = `
+                <div style="padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                        <div style="width: 60px; height: 60px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">
+                            ${cliente.nombre ? cliente.nombre[0] : 'C'}
+                        </div>
+                        <div>
+                            <h2 style="margin: 0;">${cliente.nombre}</h2>
+                            <small style="color: var(--gray);">${cliente.tienda_nombre}</small>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--light); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <p style="margin: 0 0 5px 0;"><strong>Teléfono:</strong> ${cliente.telefono || 'No especificado'}</p>
+                        <p style="margin: 0 0 5px 0;"><strong>Email:</strong> ${cliente.email || 'No especificado'}</p>
+                        <p style="margin: 0 0 5px 0;"><strong>Dirección:</strong> ${cliente.direccion || 'No especificada'}</p>
+                        <p style="margin: 0;"><strong>Referencias:</strong> ${cliente.referencias || 'Sin referencias'}</p>
+                    </div>
+
+                    <h4 style="margin-bottom: 10px;"><i class="fas fa-receipt"></i> Últimos Pedidos</h4>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Orden</th>
+                                <th>Total</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${pedidosHtml}
+                        </tbody>
+                    </table>
+
+                    <p style="color: var(--gray); font-size: 12px; margin-top: 15px; text-align: center;">
+                        Registrado: ${cliente.fecha_registro || 'N/A'}
+                    </p>
+                </div>
+            `;
+            document.getElementById('modalCliente').classList.add('active');
+        });
+}
+
+function cerrarModal() {
+    document.getElementById('modalCliente').classList.remove('active');
+}
+
+function filtrarClientes() {
+    const busqueda = document.getElementById('buscarCliente').value.toLowerCase();
+    const tienda = document.getElementById('filtroTienda').value;
+    const filas = document.querySelectorAll('#tablaClientes tbody tr');
+
+    filas.forEach(fila => {
+        const texto = fila.textContent.toLowerCase();
+        const filaTienda = fila.dataset.tienda;
+
+        let mostrar = texto.includes(busqueda);
+        if (tienda) mostrar = mostrar && filaTienda === tienda;
+
+        fila.style.display = mostrar ? '' : 'none';
+    });
+}
+
+function exportarClientes() {
+    window.open('/superadmin/api/clientes/exportar', '_blank');
+}
+</script>
+{% endblock %}

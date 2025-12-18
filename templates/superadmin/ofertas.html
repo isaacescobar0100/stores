@@ -1,0 +1,600 @@
+{% extends 'superadmin/base.html' %}
+
+{% block title %}Gestión de Ofertas{% endblock %}
+{% block page_title %}Gestión de Ofertas{% endblock %}
+{% block page_subtitle %}Crear ofertas, descuentos y combos para las tiendas{% endblock %}
+
+{% block content %}
+<!-- Toolbar -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="buscarOferta" placeholder="Buscar oferta..." class="form-control" style="width: 200px;">
+            <select id="filtroTienda" class="form-control" style="width: 180px;">
+                <option value="">Todas las tiendas</option>
+                {% for t in tiendas %}
+                <option value="{{ t.id }}">{{ t.nombre }}</option>
+                {% endfor %}
+            </select>
+            <select id="filtroTipo" class="form-control" style="width: 150px;">
+                <option value="">Todos los tipos</option>
+                <option value="descuento">Descuento</option>
+                <option value="combo">Combo</option>
+                <option value="2x1">2x1</option>
+            </select>
+            <select id="filtroEstado" class="form-control" style="width: 130px;">
+                <option value="">Todos</option>
+                <option value="1">Activas</option>
+                <option value="0">Inactivas</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalNueva()">
+            <i class="fas fa-plus"></i> Nueva Oferta
+        </button>
+    </div>
+</div>
+
+<!-- Estadísticas -->
+<div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="fas fa-tags"></i></div>
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">Total Ofertas</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-value">{{ stats.activas }}</div>
+        <div class="stat-label">Activas</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon orange"><i class="fas fa-percent"></i></div>
+        <div class="stat-value">{{ stats.descuentos }}</div>
+        <div class="stat-label">Descuentos</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-boxes"></i></div>
+        <div class="stat-value">{{ stats.combos }}</div>
+        <div class="stat-label">Combos</div>
+    </div>
+</div>
+
+<!-- Tabla de Ofertas -->
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-tags"></i> Ofertas y Promociones</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table" id="tablaOfertas">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Oferta</th>
+                    <th>Tienda</th>
+                    <th>Tipo</th>
+                    <th>Descuento</th>
+                    <th>Vigencia</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for oferta in ofertas %}
+                <tr data-tienda="{{ oferta.tienda_id }}" data-tipo="{{ oferta.tipo }}" data-activo="{{ '1' if oferta.activo else '0' }}">
+                    <td>#{{ oferta.id }}</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 40px; height: 40px; background: {% if oferta.tipo == 'combo' %}var(--secondary){% elif oferta.tipo == '2x1' %}var(--success){% else %}var(--warning){% endif %}; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white;">
+                                <i class="fas fa-{% if oferta.tipo == 'combo' %}boxes{% elif oferta.tipo == '2x1' %}clone{% else %}percent{% endif %}"></i>
+                            </div>
+                            <div>
+                                <strong>{{ oferta.nombre }}</strong><br>
+                                <small style="color: var(--gray);">{{ oferta.descripcion[:50] if oferta.descripcion else 'Sin descripción' }}{% if oferta.descripcion and oferta.descripcion|length > 50 %}...{% endif %}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span style="background: var(--primary-light, #ede9fe); color: var(--primary); padding: 2px 8px; border-radius: 4px; font-size: 12px;">
+                            {{ oferta.tienda_nombre }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge badge-{% if oferta.tipo == 'combo' %}info{% elif oferta.tipo == '2x1' %}success{% else %}warning{% endif %}">
+                            {{ oferta.tipo|upper }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if oferta.tipo == 'descuento' %}
+                            {% if oferta.tipo_descuento == 'porcentaje' %}
+                                <strong style="color: var(--danger);">-{{ oferta.valor_descuento }}%</strong>
+                            {% else %}
+                                <strong style="color: var(--danger);">-${{ "%.2f"|format(oferta.valor_descuento) }}</strong>
+                            {% endif %}
+                        {% elif oferta.tipo == '2x1' %}
+                            <strong style="color: var(--success);">2x1</strong>
+                        {% else %}
+                            <strong style="color: var(--secondary);">${{ "%.2f"|format(oferta.precio_combo or 0) }}</strong>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <small>
+                            {% if oferta.fecha_inicio and oferta.fecha_fin %}
+                                {{ oferta.fecha_inicio }} - {{ oferta.fecha_fin }}
+                            {% elif oferta.fecha_inicio %}
+                                Desde {{ oferta.fecha_inicio }}
+                            {% elif oferta.fecha_fin %}
+                                Hasta {{ oferta.fecha_fin }}
+                            {% else %}
+                                Sin límite
+                            {% endif %}
+                        </small>
+                    </td>
+                    <td>
+                        <span class="badge badge-{% if oferta.activo %}success{% else %}danger{% endif %}">
+                            {{ 'Activa' if oferta.activo else 'Inactiva' }}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="btn btn-sm btn-primary" onclick="editarOferta({{ oferta.id }})" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-{% if oferta.activo %}danger{% else %}success{% endif %}"
+                                    onclick="toggleOferta({{ oferta.id }}, {{ 'true' if oferta.activo else 'false' }})"
+                                    title="{{ 'Desactivar' if oferta.activo else 'Activar' }}">
+                                <i class="fas fa-{% if oferta.activo %}ban{% else %}check{% endif %}"></i>
+                            </button>
+                            <button class="btn btn-sm btn-secondary" onclick="eliminarOferta({{ oferta.id }})" title="Eliminar">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 40px; color: var(--gray);">
+                        <i class="fas fa-tags" style="font-size: 48px; margin-bottom: 16px; display: block;"></i>
+                        No hay ofertas creadas. ¡Crea la primera!
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Nueva/Editar Oferta -->
+<div id="modalOferta" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3 id="modalTitulo">Nueva Oferta</h3>
+            <button class="modal-close" onclick="cerrarModal()">&times;</button>
+        </div>
+        <form id="formOferta" onsubmit="guardarOferta(event)">
+            <div class="modal-body">
+                <input type="hidden" id="ofertaId" name="id">
+
+                <!-- Info básica -->
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Nombre de la Oferta *</label>
+                        <input type="text" id="ofertaNombre" name="nombre" class="form-control" required placeholder="Ej: Combo Familiar">
+                    </div>
+                    <div class="form-group">
+                        <label>Tienda *</label>
+                        <select id="ofertaTienda" name="tienda_id" class="form-control" required onchange="cargarProductosTienda()">
+                            <option value="">Seleccionar tienda</option>
+                            {% for t in tiendas %}
+                            <option value="{{ t.id }}">{{ t.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea id="ofertaDescripcion" name="descripcion" class="form-control" rows="2" placeholder="Descripción visible para los clientes"></textarea>
+                </div>
+
+                <!-- Tipo de oferta -->
+                <div class="form-group">
+                    <label>Tipo de Oferta *</label>
+                    <div style="display: flex; gap: 10px; margin-top: 8px;">
+                        <button type="button" class="tipo-oferta-btn active" data-tipo="descuento" onclick="setTipoOferta('descuento')">
+                            <i class="fas fa-percent"></i>
+                            <span>Descuento</span>
+                        </button>
+                        <button type="button" class="tipo-oferta-btn" data-tipo="combo" onclick="setTipoOferta('combo')">
+                            <i class="fas fa-boxes"></i>
+                            <span>Combo</span>
+                        </button>
+                        <button type="button" class="tipo-oferta-btn" data-tipo="2x1" onclick="setTipoOferta('2x1')">
+                            <i class="fas fa-clone"></i>
+                            <span>2x1</span>
+                        </button>
+                    </div>
+                    <input type="hidden" id="ofertaTipo" name="tipo" value="descuento">
+                </div>
+
+                <!-- Opciones de descuento -->
+                <div id="opcionesDescuento">
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Tipo de Descuento</label>
+                            <select id="tipoDescuento" name="tipo_descuento" class="form-control">
+                                <option value="porcentaje">Porcentaje (%)</option>
+                                <option value="fijo">Monto fijo ($)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Valor del Descuento *</label>
+                            <input type="number" id="valorDescuento" name="valor_descuento" class="form-control" step="0.01" min="0" placeholder="Ej: 15">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Opciones de combo -->
+                <div id="opcionesCombo" style="display: none;">
+                    <div class="form-group">
+                        <label>Precio del Combo *</label>
+                        <input type="number" id="precioCombo" name="precio_combo" class="form-control" step="0.01" min="0" placeholder="Precio final del combo">
+                    </div>
+                </div>
+
+                <!-- Productos aplicables -->
+                <div class="form-group">
+                    <label>Productos Aplicables</label>
+                    <p style="font-size: 12px; color: var(--gray); margin-bottom: 10px;">Selecciona los productos. Si no seleccionas ninguno, aplica a todos.</p>
+                    <div id="productosContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+                        <p style="color: var(--gray); text-align: center; padding: 20px;">Selecciona una tienda primero</p>
+                    </div>
+                </div>
+
+                <!-- Vigencia -->
+                <div style="border-top: 1px solid var(--border); margin-top: 20px; padding-top: 20px;">
+                    <h4 style="margin-bottom: 15px;"><i class="fas fa-calendar"></i> Vigencia (opcional)</h4>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Fecha Inicio</label>
+                            <input type="date" id="fechaInicio" name="fecha_inicio" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha Fin</label>
+                            <input type="date" id="fechaFin" name="fecha_fin" class="form-control">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.tipo-oferta-btn {
+    flex: 1;
+    padding: 16px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: white;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.tipo-oferta-btn i {
+    font-size: 24px;
+    display: block;
+    margin-bottom: 8px;
+    color: var(--gray);
+}
+
+.tipo-oferta-btn span {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.tipo-oferta-btn:hover {
+    border-color: var(--primary);
+}
+
+.tipo-oferta-btn.active {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.tipo-oferta-btn.active i {
+    color: var(--primary);
+}
+
+.producto-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.producto-checkbox:hover {
+    background: var(--light);
+}
+
+.producto-checkbox input {
+    width: 18px;
+    height: 18px;
+}
+
+.producto-checkbox label {
+    flex: 1;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+}
+
+.producto-checkbox .precio {
+    color: var(--gray);
+    font-size: 13px;
+}
+</style>
+
+<script>
+let tipoOfertaActual = 'descuento';
+let productosCache = {};
+
+function abrirModalNueva() {
+    document.getElementById('modalTitulo').textContent = 'Nueva Oferta';
+    document.getElementById('formOferta').reset();
+    document.getElementById('ofertaId').value = '';
+    setTipoOferta('descuento');
+    document.getElementById('productosContainer').innerHTML = '<p style="color: var(--gray); text-align: center; padding: 20px;">Selecciona una tienda primero</p>';
+    document.getElementById('modalOferta').classList.add('active');
+}
+
+function cerrarModal() {
+    document.getElementById('modalOferta').classList.remove('active');
+}
+
+function setTipoOferta(tipo) {
+    tipoOfertaActual = tipo;
+    document.getElementById('ofertaTipo').value = tipo;
+
+    // Update buttons
+    document.querySelectorAll('.tipo-oferta-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tipo === tipo);
+    });
+
+    // Show/hide options
+    document.getElementById('opcionesDescuento').style.display = (tipo === 'descuento' || tipo === '2x1') ? 'block' : 'none';
+    document.getElementById('opcionesCombo').style.display = tipo === 'combo' ? 'block' : 'none';
+
+    // Update required fields
+    document.getElementById('valorDescuento').required = (tipo === 'descuento');
+    document.getElementById('precioCombo').required = (tipo === 'combo');
+}
+
+function cargarProductosTienda() {
+    const tiendaId = document.getElementById('ofertaTienda').value;
+    const container = document.getElementById('productosContainer');
+
+    if (!tiendaId) {
+        container.innerHTML = '<p style="color: var(--gray); text-align: center; padding: 20px;">Selecciona una tienda primero</p>';
+        return;
+    }
+
+    // Check cache
+    if (productosCache[tiendaId]) {
+        renderProductos(productosCache[tiendaId]);
+        return;
+    }
+
+    container.innerHTML = '<p style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Cargando productos...</p>';
+
+    fetch(`/superadmin/api/ofertas/productos/${tiendaId}`)
+        .then(r => r.json())
+        .then(productos => {
+            productosCache[tiendaId] = productos;
+            renderProductos(productos);
+        })
+        .catch(() => {
+            container.innerHTML = '<p style="color: var(--danger); text-align: center; padding: 20px;">Error al cargar productos</p>';
+        });
+}
+
+function renderProductos(productos, seleccionados = []) {
+    const container = document.getElementById('productosContainer');
+
+    if (productos.length === 0) {
+        container.innerHTML = '<p style="color: var(--gray); text-align: center; padding: 20px;">Esta tienda no tiene productos</p>';
+        return;
+    }
+
+    container.innerHTML = productos.map(p => `
+        <div class="producto-checkbox">
+            <input type="checkbox" id="prod_${p.id}" name="productos" value="${p.id}" ${seleccionados.includes(p.id) ? 'checked' : ''}>
+            <label for="prod_${p.id}">
+                <span>${p.nombre}</span>
+                <span class="precio">$${parseFloat(p.precio).toFixed(2)}</span>
+            </label>
+        </div>
+    `).join('');
+}
+
+function editarOferta(id) {
+    showLoading('Cargando oferta...');
+
+    fetch(`/superadmin/api/ofertas/${id}`)
+        .then(r => r.json())
+        .then(oferta => {
+            hideLoading();
+
+            document.getElementById('modalTitulo').textContent = 'Editar Oferta';
+            document.getElementById('ofertaId').value = oferta.id;
+            document.getElementById('ofertaNombre').value = oferta.nombre;
+            document.getElementById('ofertaTienda').value = oferta.tienda_id;
+            document.getElementById('ofertaDescripcion').value = oferta.descripcion || '';
+
+            setTipoOferta(oferta.tipo);
+
+            if (oferta.tipo === 'descuento' || oferta.tipo === '2x1') {
+                document.getElementById('tipoDescuento').value = oferta.tipo_descuento || 'porcentaje';
+                document.getElementById('valorDescuento').value = oferta.valor_descuento || '';
+            }
+
+            if (oferta.tipo === 'combo') {
+                document.getElementById('precioCombo').value = oferta.precio_combo || '';
+            }
+
+            document.getElementById('fechaInicio').value = oferta.fecha_inicio || '';
+            document.getElementById('fechaFin').value = oferta.fecha_fin || '';
+
+            // Load products and select
+            const tiendaId = oferta.tienda_id;
+            if (productosCache[tiendaId]) {
+                renderProductos(productosCache[tiendaId], oferta.productos || []);
+            } else {
+                fetch(`/superadmin/api/ofertas/productos/${tiendaId}`)
+                    .then(r => r.json())
+                    .then(productos => {
+                        productosCache[tiendaId] = productos;
+                        renderProductos(productos, oferta.productos || []);
+                    });
+            }
+
+            document.getElementById('modalOferta').classList.add('active');
+        })
+        .catch(() => {
+            hideLoading();
+            showToast('error', 'Error', 'No se pudo cargar la oferta');
+        });
+}
+
+function guardarOferta(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const id = document.getElementById('ofertaId').value;
+
+    // Collect products
+    const productosSeleccionados = [];
+    form.querySelectorAll('input[name="productos"]:checked').forEach(cb => {
+        productosSeleccionados.push(parseInt(cb.value));
+    });
+
+    const data = {
+        nombre: document.getElementById('ofertaNombre').value,
+        tienda_id: document.getElementById('ofertaTienda').value,
+        descripcion: document.getElementById('ofertaDescripcion').value,
+        tipo: document.getElementById('ofertaTipo').value,
+        tipo_descuento: document.getElementById('tipoDescuento').value,
+        valor_descuento: document.getElementById('valorDescuento').value || null,
+        precio_combo: document.getElementById('precioCombo').value || null,
+        fecha_inicio: document.getElementById('fechaInicio').value || null,
+        fecha_fin: document.getElementById('fechaFin').value || null,
+        productos: productosSeleccionados
+    };
+
+    const url = id ? `/superadmin/api/ofertas/${id}` : '/superadmin/api/ofertas';
+    const method = id ? 'PUT' : 'POST';
+
+    setButtonLoading(btn, true);
+
+    fetch(url, {
+        method: method,
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(result => {
+        setButtonLoading(btn, false);
+        if (result.success) {
+            showToast('success', 'Guardado', id ? 'Oferta actualizada' : 'Oferta creada');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('error', 'Error', result.error || 'Error al guardar');
+        }
+    })
+    .catch(() => {
+        setButtonLoading(btn, false);
+        showToast('error', 'Error', 'Error de conexión');
+    });
+}
+
+function toggleOferta(id, activo) {
+    const accion = activo ? 'desactivar' : 'activar';
+    if (confirm(`¿Seguro que desea ${accion} esta oferta?`)) {
+        showLoading(activo ? 'Desactivando...' : 'Activando...');
+        fetch(`/superadmin/api/ofertas/${id}/toggle`, {method: 'POST'})
+            .then(r => r.json())
+            .then(result => {
+                hideLoading();
+                if (result.success) {
+                    showToast('success', 'Actualizado', `Oferta ${activo ? 'desactivada' : 'activada'}`);
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('error', 'Error', result.error || 'No se pudo actualizar');
+                }
+            })
+            .catch(() => {
+                hideLoading();
+                showToast('error', 'Error', 'Error de conexión');
+            });
+    }
+}
+
+function eliminarOferta(id) {
+    if (confirm('¿Seguro que desea eliminar esta oferta? Esta acción no se puede deshacer.')) {
+        showLoading('Eliminando...');
+        fetch(`/superadmin/api/ofertas/${id}`, {method: 'DELETE'})
+            .then(r => r.json())
+            .then(result => {
+                hideLoading();
+                if (result.success) {
+                    showToast('success', 'Eliminado', 'Oferta eliminada correctamente');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('error', 'Error', result.error || 'No se pudo eliminar');
+                }
+            })
+            .catch(() => {
+                hideLoading();
+                showToast('error', 'Error', 'Error de conexión');
+            });
+    }
+}
+
+// Filtros
+document.getElementById('buscarOferta').addEventListener('input', filtrarTabla);
+document.getElementById('filtroTienda').addEventListener('change', filtrarTabla);
+document.getElementById('filtroTipo').addEventListener('change', filtrarTabla);
+document.getElementById('filtroEstado').addEventListener('change', filtrarTabla);
+
+function filtrarTabla() {
+    const busqueda = document.getElementById('buscarOferta').value.toLowerCase();
+    const tienda = document.getElementById('filtroTienda').value;
+    const tipo = document.getElementById('filtroTipo').value;
+    const estado = document.getElementById('filtroEstado').value;
+    const filas = document.querySelectorAll('#tablaOfertas tbody tr');
+
+    filas.forEach(fila => {
+        if (!fila.dataset.tienda) return; // Skip empty row
+
+        const texto = fila.textContent.toLowerCase();
+        const filaTienda = fila.dataset.tienda;
+        const filaTipo = fila.dataset.tipo;
+        const filaActivo = fila.dataset.activo;
+
+        let mostrar = texto.includes(busqueda);
+        if (tienda) mostrar = mostrar && filaTienda === tienda;
+        if (tipo) mostrar = mostrar && filaTipo === tipo;
+        if (estado) mostrar = mostrar && filaActivo === estado;
+
+        fila.style.display = mostrar ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,562 @@
+{% extends 'superadmin/base.html' %}
+
+{% block title %}Importar Productos{% endblock %}
+{% block page_title %}Importar Productos{% endblock %}
+{% block page_subtitle %}Carga masiva de productos desde archivo Excel{% endblock %}
+
+{% block content %}
+<style>
+    .import-container {
+        max-width: 900px;
+    }
+    .step-card {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .step-number {
+        width: 35px;
+        height: 35px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+    .btn-download {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        border: none;
+        color: white;
+        padding: 12px 25px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-download:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(17, 153, 142, 0.4);
+        color: white;
+    }
+    .upload-zone {
+        border: 2px dashed #ddd;
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: #fafafa;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+        border-color: #667eea;
+        background: #f0f4ff;
+    }
+    .upload-zone i {
+        font-size: 48px;
+        color: #667eea;
+        margin-bottom: 15px;
+    }
+    .preview-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    .preview-table th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px;
+        text-align: left;
+    }
+    .preview-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #eee;
+        vertical-align: middle;
+    }
+    .preview-table tr:hover {
+        background: #f8f9ff;
+    }
+    .btn-import {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        padding: 15px 40px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 16px;
+        cursor: pointer;
+    }
+    .btn-import:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    .btn-import:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .status-ok {
+        background: #d4edda;
+        color: #155724;
+    }
+    .status-error {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    .status-warning {
+        background: #fff3cd;
+        color: #856404;
+    }
+    .info-box {
+        background: #e7f3ff;
+        border-left: 4px solid #2196F3;
+        padding: 15px;
+        border-radius: 0 8px 8px 0;
+        margin: 15px 0;
+    }
+    .info-box i {
+        color: #2196F3;
+        margin-right: 8px;
+    }
+    .progress-bar-custom {
+        height: 8px;
+        background: #eee;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 15px;
+        display: none;
+    }
+    .progress-bar-custom .progress-fill {
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        width: 0%;
+        transition: width 0.3s;
+    }
+    .result-summary {
+        display: none;
+        margin-top: 20px;
+        padding: 20px;
+        border-radius: 8px;
+    }
+    .result-success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+    }
+    .result-error {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+    }
+    .tip-box {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 12px 15px;
+        border-radius: 0 8px 8px 0;
+        margin-top: 15px;
+        font-size: 13px;
+    }
+    .tip-box i { color: #ffc107; margin-right: 8px; }
+</style>
+
+<div class="import-container">
+    <!-- Paso 1: Seleccionar Tienda -->
+    <div class="step-card">
+        <h4><span class="step-number">1</span> Seleccionar Tienda</h4>
+        <select id="tiendaSelect" class="form-control" style="max-width: 400px; margin-top: 15px;">
+            <option value="">-- Seleccione una tienda --</option>
+            {% for tienda in tiendas %}
+            <option value="{{ tienda.id }}">{{ tienda.nombre }}</option>
+            {% endfor %}
+        </select>
+        <div id="categoriasInfo" style="margin-top: 15px; display: none;">
+            <small class="text-muted">
+                <i class="fas fa-tags"></i> Categorias disponibles: <span id="categoriasLista"></span>
+            </small>
+        </div>
+    </div>
+
+    <!-- Paso 2: Descargar Plantilla -->
+    <div class="step-card">
+        <h4><span class="step-number">2</span> Descargar Plantilla Excel</h4>
+        <p class="text-muted">Descarga la plantilla y llenala con los datos de tus productos.</p>
+
+        <button class="btn-download" onclick="descargarPlantilla()">
+            <i class="fas fa-download"></i> Descargar Plantilla Excel
+        </button>
+
+        <div class="info-box">
+            <i class="fas fa-info-circle"></i>
+            <strong>Columnas del Excel:</strong>
+            <ul style="margin: 10px 0 0 20px; padding: 0;">
+                <li><strong>Nombre</strong> - Nombre del producto (requerido)</li>
+                <li><strong>Descripcion</strong> - Descripcion del producto</li>
+                <li><strong>Precio</strong> - Precio en numeros (ej: 15000)</li>
+                <li><strong>Categoria</strong> - Nombre exacto de la categoria</li>
+            </ul>
+        </div>
+
+        <div class="tip-box">
+            <i class="fas fa-lightbulb"></i>
+            <strong>Tip:</strong> Las imagenes se pueden agregar despues en la seccion
+            <a href="/superadmin/galeria-productos"><i class="fas fa-images"></i> Galeria de Productos</a>
+        </div>
+    </div>
+
+    <!-- Paso 3: Subir Excel -->
+    <div class="step-card">
+        <h4><span class="step-number">3</span> Subir Archivo Excel</h4>
+
+        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+            <i class="fas fa-file-excel"></i>
+            <p style="margin: 0; font-size: 18px; color: #666;">
+                Arrastra tu archivo Excel aqui o haz clic para seleccionar
+            </p>
+            <small class="text-muted">Archivos .xlsx o .xls</small>
+        </div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;" onchange="procesarExcel(this.files[0])">
+
+        <div class="progress-bar-custom" id="progressBar">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+    </div>
+
+    <!-- Paso 4: Vista Previa -->
+    <div class="step-card" id="previewCard" style="display: none;">
+        <h4><span class="step-number">4</span> Vista Previa</h4>
+        <p class="text-muted">Revisa los productos antes de importar:</p>
+
+        <div style="overflow-x: auto;">
+            <table class="preview-table" id="previewTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Nombre</th>
+                        <th>Descripcion</th>
+                        <th>Precio</th>
+                        <th>Categoria</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="previewBody">
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 25px; text-align: center;">
+            <button class="btn-import" id="btnImportar" onclick="importarProductos()" disabled>
+                <i class="fas fa-upload"></i> Importar Productos
+            </button>
+        </div>
+
+        <div class="result-summary" id="resultSummary">
+        </div>
+    </div>
+</div>
+
+<!-- SheetJS para leer Excel -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+let productosParaImportar = [];
+let categoriasDisponibles = [];
+let tiendaSeleccionada = null;
+
+// Cargar categorias al seleccionar tienda
+document.getElementById('tiendaSelect').addEventListener('change', async function() {
+    tiendaSeleccionada = this.value;
+    const infoDiv = document.getElementById('categoriasInfo');
+    const listaSpan = document.getElementById('categoriasLista');
+
+    if (!tiendaSeleccionada) {
+        infoDiv.style.display = 'none';
+        categoriasDisponibles = [];
+        return;
+    }
+
+    try {
+        const response = await fetch(`/superadmin/api/tienda/${tiendaSeleccionada}/categorias`);
+        const data = await response.json();
+        categoriasDisponibles = data.categorias || [];
+
+        if (categoriasDisponibles.length > 0) {
+            listaSpan.textContent = categoriasDisponibles.map(c => c.nombre).join(', ');
+            infoDiv.style.display = 'block';
+        } else {
+            listaSpan.textContent = 'No hay categorias asignadas';
+            infoDiv.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error cargando categorias:', error);
+        listaSpan.textContent = 'Error al cargar';
+        infoDiv.style.display = 'block';
+    }
+});
+
+// Descargar plantilla Excel
+function descargarPlantilla() {
+    const wb = XLSX.utils.book_new();
+
+    const data = [
+        ['Nombre', 'Descripcion', 'Precio', 'Categoria'],
+        ['Hamburguesa Clasica', 'Deliciosa hamburguesa con queso y vegetales', '15000', 'Hamburguesas'],
+        ['Pizza Pepperoni', 'Pizza con pepperoni y queso mozzarella', '25000', 'Pizzas'],
+        ['Coca Cola 350ml', 'Bebida refrescante', '5000', 'Bebidas'],
+        ['Papas Fritas', 'Porcion de papas fritas crujientes', '8000', 'Acompanantes']
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    ws['!cols'] = [
+        { wch: 30 },  // Nombre
+        { wch: 45 },  // Descripcion
+        { wch: 12 },  // Precio
+        { wch: 20 }   // Categoria
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Productos');
+    XLSX.writeFile(wb, 'plantilla_productos.xlsx');
+}
+
+// Drag and drop
+const uploadZone = document.getElementById('uploadZone');
+
+uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.classList.add('dragover');
+});
+
+uploadZone.addEventListener('dragleave', () => {
+    uploadZone.classList.remove('dragover');
+});
+
+uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (file && (ext === 'xlsx' || ext === 'xls')) {
+        procesarExcel(file);
+    } else {
+        showToast('error', 'Error', 'Por favor sube un archivo Excel (.xlsx o .xls)');
+    }
+});
+
+// Procesar Excel
+async function procesarExcel(file) {
+    if (!tiendaSeleccionada) {
+        showToast('warning', 'Atencion', 'Por favor selecciona una tienda primero');
+        return;
+    }
+
+    if (!file) {
+        showToast('error', 'Error', 'No se selecciono ningun archivo');
+        return;
+    }
+
+    const progressBar = document.getElementById('progressBar');
+    const progress = document.getElementById('progress');
+    progressBar.style.display = 'block';
+    progress.style.width = '20%';
+
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        progress.style.width = '50%';
+
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+        progress.style.width = '80%';
+
+        // Procesar datos (saltar encabezado)
+        productosParaImportar = [];
+
+        for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            if (!row || row.length === 0) continue;
+
+            const nombre = (row[0] || '').toString().trim();
+            const descripcion = (row[1] || '').toString().trim();
+            const precio = parseFloat(row[2]) || 0;
+            const categoria = (row[3] || '').toString().trim();
+
+            if (!nombre) continue;
+
+            // Buscar categoria
+            let categoriaId = null;
+            let categoriaStatus = 'warning';
+            let categoriaMsg = 'Sin categoria';
+
+            if (categoria) {
+                const catEncontrada = categoriasDisponibles.find(
+                    c => c.nombre.toLowerCase() === categoria.toLowerCase()
+                );
+                if (catEncontrada) {
+                    categoriaId = catEncontrada.id;
+                    categoriaStatus = 'ok';
+                    categoriaMsg = catEncontrada.nombre;
+                } else {
+                    categoriaStatus = 'error';
+                    categoriaMsg = `"${categoria}" no existe`;
+                }
+            }
+
+            productosParaImportar.push({
+                rowNum: i,
+                nombre,
+                descripcion,
+                precio,
+                categoria: categoriaMsg,
+                categoriaNombre: categoria,
+                categoria_id: categoriaId,
+                categoriaStatus
+            });
+        }
+
+        progress.style.width = '100%';
+
+        // Mostrar vista previa
+        mostrarVistaPrevia();
+
+    } catch (error) {
+        console.error('Error procesando Excel:', error);
+        showToast('error', 'Error', 'Error al procesar el archivo: ' + error.message);
+    } finally {
+        setTimeout(() => {
+            progressBar.style.display = 'none';
+            progress.style.width = '0%';
+        }, 500);
+    }
+}
+
+// Mostrar vista previa
+function mostrarVistaPrevia() {
+    const previewCard = document.getElementById('previewCard');
+    const previewBody = document.getElementById('previewBody');
+    const btnImportar = document.getElementById('btnImportar');
+
+    previewBody.innerHTML = '';
+
+    if (productosParaImportar.length === 0) {
+        previewBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No se encontraron productos validos</td></tr>';
+        previewCard.style.display = 'block';
+        btnImportar.disabled = true;
+        return;
+    }
+
+    let hayErrores = false;
+
+    productosParaImportar.forEach((producto) => {
+        const tr = document.createElement('tr');
+
+        let statusClass = 'status-warning';
+        if (producto.categoriaStatus === 'ok') statusClass = 'status-ok';
+        if (producto.categoriaStatus === 'error') {
+            statusClass = 'status-error';
+            hayErrores = true;
+        }
+
+        tr.innerHTML = `
+            <td>${producto.rowNum}</td>
+            <td><strong>${producto.nombre}</strong></td>
+            <td>${producto.descripcion || '<span class="text-muted">-</span>'}</td>
+            <td>$${producto.precio.toLocaleString()}</td>
+            <td>${producto.categoria}</td>
+            <td><span class="status-badge ${statusClass}">${producto.categoriaStatus === 'ok' ? 'OK' : producto.categoriaStatus === 'error' ? 'Error' : 'Sin cat.'}</span></td>
+        `;
+
+        previewBody.appendChild(tr);
+    });
+
+    previewCard.style.display = 'block';
+    btnImportar.disabled = hayErrores;
+
+    if (hayErrores) {
+        btnImportar.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Corrige las categorias';
+    } else {
+        btnImportar.innerHTML = `<i class="fas fa-upload"></i> Importar ${productosParaImportar.length} Productos`;
+    }
+}
+
+// Importar productos
+async function importarProductos() {
+    const btnImportar = document.getElementById('btnImportar');
+    const resultSummary = document.getElementById('resultSummary');
+
+    btnImportar.disabled = true;
+    btnImportar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importando...';
+
+    try {
+        const productosData = productosParaImportar.map(p => ({
+            nombre: p.nombre,
+            descripcion: p.descripcion,
+            precio: p.precio,
+            categoria_id: p.categoria_id,
+            categoria: p.categoriaNombre
+        }));
+
+        const response = await fetch('/superadmin/api/importar-productos', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                tienda_id: tiendaSeleccionada,
+                productos: productosData
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            resultSummary.className = 'result-summary result-success';
+            resultSummary.innerHTML = `
+                <h5><i class="fas fa-check-circle" style="color: #28a745;"></i> Importacion Exitosa</h5>
+                <p>Se importaron <strong>${result.importados}</strong> productos correctamente.</p>
+                ${result.errores > 0 ? `<p><small class="text-warning">${result.errores} productos con errores</small></p>` : ''}
+                <div style="margin-top: 15px;">
+                    <a href="/superadmin/galeria-productos?tienda=${tiendaSeleccionada}" class="btn btn-primary" style="margin-right: 10px;">
+                        <i class="fas fa-images"></i> Agregar Imagenes
+                    </a>
+                    <a href="/superadmin/tienda/${tiendaSeleccionada}/productos" class="btn btn-success">
+                        <i class="fas fa-eye"></i> Ver Productos
+                    </a>
+                </div>
+            `;
+            resultSummary.style.display = 'block';
+
+            productosParaImportar = [];
+            document.getElementById('previewBody').innerHTML = '';
+            btnImportar.innerHTML = '<i class="fas fa-check"></i> Completado';
+        } else {
+            throw new Error(result.error || 'Error desconocido');
+        }
+
+    } catch (error) {
+        console.error('Error importando:', error);
+        resultSummary.className = 'result-summary result-error';
+        resultSummary.innerHTML = `
+            <h5><i class="fas fa-times-circle" style="color: #dc3545;"></i> Error en la Importacion</h5>
+            <p>${error.message}</p>
+        `;
+        resultSummary.style.display = 'block';
+
+        btnImportar.disabled = false;
+        btnImportar.innerHTML = '<i class="fas fa-redo"></i> Reintentar';
+    }
+}
+</script>
+{% endblock %}

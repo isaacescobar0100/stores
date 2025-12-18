@@ -1,0 +1,75 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block page_title %}Pedidos{% endblock %}
+
+{% block admin_content %}
+<div class="action-bar">
+    <div class="action-bar-left">
+        <a href="{{ url_for('admin_pedidos') }}" class="btn {% if not request.args.get('estado') %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">Todos</a>
+        <a href="{{ url_for('admin_pedidos', estado='pendiente') }}" class="btn {% if request.args.get('estado') == 'pendiente' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">Pendientes</a>
+        <a href="{{ url_for('admin_pedidos', estado='preparando') }}" class="btn {% if request.args.get('estado') == 'preparando' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">En Preparación</a>
+        <a href="{{ url_for('admin_pedidos', estado='entregado') }}" class="btn {% if request.args.get('estado') == 'entregado' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">Entregados</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body" style="padding: 0;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Orden</th>
+                    <th>Cliente</th>
+                    <th>Teléfono</th>
+                    <th>Tipo</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pedido in pedidos %}
+                <tr>
+                    <td><strong>#{{ pedido.numero_orden or pedido.id }}</strong></td>
+                    <td>{{ pedido.cliente_nombre or 'Sin nombre' }}</td>
+                    <td>{{ pedido.cliente_telefono or '-' }}</td>
+                    <td>
+                        {% if pedido.tipo == 'domicilio' %}
+                            <span class="badge badge-info">🛵 Domicilio</span>
+                        {% elif pedido.tipo == 'local' %}
+                            <span class="badge badge-success">🍽️ Local</span>
+                        {% else %}
+                            <span class="badge badge-warning">📦 Para llevar</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>${{ "%.2f"|format(pedido.total) }}</strong></td>
+                    <td>
+                        {% if pedido.estado == 'pendiente' %}
+                            <span class="badge badge-warning">Pendiente</span>
+                        {% elif pedido.estado == 'confirmado' %}
+                            <span class="badge badge-info">Confirmado</span>
+                        {% elif pedido.estado == 'preparando' %}
+                            <span class="badge badge-primary">Preparando</span>
+                        {% elif pedido.estado == 'listo' %}
+                            <span class="badge badge-success">Listo</span>
+                        {% elif pedido.estado == 'entregado' %}
+                            <span class="badge badge-success">Entregado</span>
+                        {% elif pedido.estado == 'cancelado' %}
+                            <span class="badge badge-danger">Cancelado</span>
+                        {% else %}
+                            <span class="badge">{{ pedido.estado }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted">{{ pedido.fecha_pedido[:16] if pedido.fecha_pedido else '' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted" style="padding: 40px;">
+                        No hay pedidos
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

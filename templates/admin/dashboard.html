@@ -1,0 +1,87 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block admin_content %}
+<!-- Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Pedidos Hoy</div>
+        <div class="stat-value">{{ stats.total_pedidos }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Ventas Hoy</div>
+        <div class="stat-value">${{ "%.2f"|format(stats.total_ventas|float) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Pendientes</div>
+        <div class="stat-value text-primary">{{ stats.por_estado.get('pendiente', 0) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">En Preparación</div>
+        <div class="stat-value" style="color: var(--secondary);">{{ stats.por_estado.get('preparando', 0) }}</div>
+    </div>
+</div>
+
+<!-- Pedidos Recientes -->
+<div class="card">
+    <div class="card-header flex flex-between flex-center">
+        <span>Pedidos Recientes</span>
+        <a href="{{ url_for('admin_pedidos') }}" class="btn btn-secondary btn-sm">Ver todos</a>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Orden</th>
+                    <th>Cliente</th>
+                    <th>Tipo</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Hora</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pedido in pedidos %}
+                <tr>
+                    <td><strong>#{{ pedido.numero_orden or pedido.id }}</strong></td>
+                    <td>{{ pedido.cliente_nombre or 'Sin nombre' }}</td>
+                    <td>
+                        {% if pedido.tipo == 'domicilio' %}
+                            <span class="badge badge-info">🛵 Domicilio</span>
+                        {% elif pedido.tipo == 'local' %}
+                            <span class="badge badge-success">🍽️ Local</span>
+                        {% else %}
+                            <span class="badge badge-warning">📦 Para llevar</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>${{ "%.2f"|format(pedido.total|float) }}</strong></td>
+                    <td>
+                        {% if pedido.estado == 'pendiente' %}
+                            <span class="badge badge-warning">Pendiente</span>
+                        {% elif pedido.estado == 'confirmado' %}
+                            <span class="badge badge-info">Confirmado</span>
+                        {% elif pedido.estado == 'preparando' %}
+                            <span class="badge badge-primary">Preparando</span>
+                        {% elif pedido.estado == 'listo' %}
+                            <span class="badge badge-success">Listo</span>
+                        {% elif pedido.estado == 'entregado' %}
+                            <span class="badge badge-success">Entregado</span>
+                        {% else %}
+                            <span class="badge badge-danger">{{ pedido.estado }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted">{{ pedido.fecha_pedido[:16] if pedido.fecha_pedido else '' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted" style="padding: 40px;">
+                        No hay pedidos hoy
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

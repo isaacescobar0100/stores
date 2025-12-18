@@ -1,0 +1,112 @@
+{% extends 'superadmin/base.html' %}
+
+{% block title %}Logs de Auditoria{% endblock %}
+{% block page_title %}Logs de Auditoria{% endblock %}
+{% block page_subtitle %}Registro de acciones en el sistema{% endblock %}
+
+{% block content %}
+<!-- Info si no hay logs -->
+{% if not logs %}
+<div class="card">
+    <div class="card-body" style="text-align: center; padding: 60px;">
+        <i class="fas fa-clipboard-list" style="font-size: 60px; color: var(--gray); margin-bottom: 20px;"></i>
+        <h3 style="color: var(--gray);">No hay registros de auditoria</h3>
+        <p style="color: var(--gray);">
+            Los logs se registraran automaticamente cuando se realicen acciones importantes en el sistema.
+        </p>
+        <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: left; max-width: 500px; margin-left: auto; margin-right: auto;">
+            <h4 style="margin: 0 0 10px 0; color: #92400e;"><i class="fas fa-info-circle"></i> Crear tabla de logs</h4>
+            <p style="margin: 0; color: #92400e; font-size: 14px;">
+                Para habilitar los logs, ejecuta este SQL en la base de datos:
+            </p>
+            <pre style="background: #1e293b; color: #10b981; padding: 15px; border-radius: 4px; margin-top: 10px; font-size: 12px; overflow-x: auto;">CREATE TABLE IF NOT EXISTS logs_auditoria (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER,
+    accion VARCHAR(100),
+    detalle TEXT,
+    fecha DATETIME,
+    ip VARCHAR(45)
+);</pre>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- Filtros -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="display: flex; gap: 15px; align-items: center; padding: 15px 20px;">
+        <input type="text" id="buscarLog" placeholder="Buscar en logs..." class="form-control" style="width: 300px;" oninput="filtrarLogs()">
+        <select id="filtroAccion" class="form-control" style="width: 180px;" onchange="filtrarLogs()">
+            <option value="">Todas las acciones</option>
+            <option value="login">Login</option>
+            <option value="eliminar">Eliminar</option>
+            <option value="crear">Crear</option>
+            <option value="actualizar">Actualizar</option>
+            <option value="configuracion">Configuracion</option>
+        </select>
+    </div>
+</div>
+
+<!-- Tabla de Logs -->
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-clipboard-list"></i> Ultimos 500 Registros</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table" id="tablaLogs">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Fecha/Hora</th>
+                    <th>Usuario</th>
+                    <th>Accion</th>
+                    <th>Detalle</th>
+                    <th>IP</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr data-accion="{{ log.accion }}">
+                    <td>#{{ log.id }}</td>
+                    <td>
+                        <small>{{ log.fecha }}</small>
+                    </td>
+                    <td>
+                        <span style="background: var(--primary-light); color: var(--primary); padding: 2px 8px; border-radius: 4px; font-size: 12px;">
+                            {{ log.usuario_nombre or 'Sistema' }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge badge-{% if 'eliminar' in log.accion %}danger{% elif 'crear' in log.accion %}success{% elif 'login' in log.accion %}info{% else %}warning{% endif %}">
+                            {{ log.accion }}
+                        </span>
+                    </td>
+                    <td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {{ log.detalle }}
+                    </td>
+                    <td><small style="color: var(--gray);">{{ log.ip }}</small></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function filtrarLogs() {
+    const busqueda = document.getElementById('buscarLog').value.toLowerCase();
+    const accion = document.getElementById('filtroAccion').value.toLowerCase();
+    const filas = document.querySelectorAll('#tablaLogs tbody tr');
+
+    filas.forEach(fila => {
+        const texto = fila.textContent.toLowerCase();
+        const filaAccion = (fila.dataset.accion || '').toLowerCase();
+
+        let mostrar = texto.includes(busqueda);
+        if (accion) mostrar = mostrar && filaAccion.includes(accion);
+
+        fila.style.display = mostrar ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

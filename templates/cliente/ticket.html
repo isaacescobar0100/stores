@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket #{{ pedido.numero_orden }} - {{ tienda.nombre }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            width: 80mm;
+            margin: 0 auto;
+            padding: 10px;
+            background: white;
+        }
+
+        .ticket-header {
+            text-align: center;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        .ticket-header h1 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .ticket-header p {
+            font-size: 11px;
+        }
+
+        .order-number {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+            padding: 10px;
+            border: 2px solid #000;
+        }
+
+        .info-section {
+            margin-bottom: 15px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+
+        .info-label {
+            font-weight: bold;
+        }
+
+        .divider {
+            border-top: 1px dashed #000;
+            margin: 10px 0;
+        }
+
+        .items-header {
+            font-weight: bold;
+            border-bottom: 1px solid #000;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+        }
+
+        .item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .item-name {
+            flex: 1;
+        }
+
+        .item-qty {
+            width: 30px;
+            text-align: center;
+        }
+
+        .item-price {
+            width: 60px;
+            text-align: right;
+        }
+
+        .totals {
+            border-top: 1px dashed #000;
+            margin-top: 10px;
+            padding-top: 10px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+
+        .total-final {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 2px solid #000;
+        }
+
+        .ticket-footer {
+            text-align: center;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dashed #000;
+            font-size: 11px;
+        }
+
+        .notas {
+            margin-top: 10px;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+
+        .notas-label {
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .tipo-pedido {
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 10px 0;
+            padding: 5px;
+            background: #000;
+            color: #fff;
+        }
+
+        @media print {
+            body {
+                width: 80mm;
+                padding: 5px;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+
+        .print-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+
+        .print-btn:hover {
+            background: #dc2626;
+        }
+    </style>
+</head>
+<body>
+    <button class="print-btn no-print" onclick="window.print()">
+        IMPRIMIR TICKET
+    </button>
+
+    <div class="ticket-header">
+        <h1>{{ tienda.nombre }}</h1>
+        {% if tienda.direccion %}
+        <p>{{ tienda.direccion }}</p>
+        {% endif %}
+        {% if tienda.telefono %}
+        <p>Tel: {{ tienda.telefono }}</p>
+        {% endif %}
+    </div>
+
+    <div class="order-number">
+        #{{ pedido.numero_orden }}
+    </div>
+
+    <div class="tipo-pedido">
+        {% if pedido.tipo == 'domicilio' %}
+            DOMICILIO
+        {% else %}
+            PARA LLEVAR
+        {% endif %}
+    </div>
+
+    <div class="info-section">
+        <div class="info-row">
+            <span class="info-label">Fecha:</span>
+            <span>{{ pedido.fecha_pedido[:16] if pedido.fecha_pedido else 'N/A' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Cliente:</span>
+            <span>{{ pedido.cliente_nombre or 'N/A' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Tel:</span>
+            <span>{{ pedido.cliente_telefono or 'N/A' }}</span>
+        </div>
+        {% if pedido.tipo == 'domicilio' and pedido.direccion_entrega %}
+        <div class="info-row">
+            <span class="info-label">Dir:</span>
+            <span>{{ pedido.direccion_entrega }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="items-header">
+        <div class="item">
+            <span class="item-name">PRODUCTO</span>
+            <span class="item-qty">CANT</span>
+            <span class="item-price">PRECIO</span>
+        </div>
+    </div>
+
+    {% for item in detalles %}
+    <div class="item">
+        <span class="item-name">{{ item.producto_nombre }}</span>
+        <span class="item-qty">{{ item.cantidad }}</span>
+        <span class="item-price">${{ "%.2f"|format(item.precio_unitario * item.cantidad) }}</span>
+    </div>
+    {% endfor %}
+
+    <div class="totals">
+        <div class="total-row">
+            <span>Subtotal:</span>
+            <span>${{ "%.2f"|format(pedido.subtotal) }}</span>
+        </div>
+        {% if pedido.costo_domicilio and pedido.costo_domicilio > 0 %}
+        <div class="total-row">
+            <span>Domicilio:</span>
+            <span>${{ "%.2f"|format(pedido.costo_domicilio) }}</span>
+        </div>
+        {% endif %}
+        <div class="total-row total-final">
+            <span>TOTAL:</span>
+            <span>${{ "%.2f"|format(pedido.total) }}</span>
+        </div>
+    </div>
+
+    {% if pedido.notas %}
+    <div class="notas">
+        <div class="notas-label">NOTAS:</div>
+        <div>{{ pedido.notas }}</div>
+    </div>
+    {% endif %}
+
+    <div class="ticket-footer">
+        <p>Gracias por su preferencia</p>
+        <p>{{ tienda.nombre }}</p>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}Iniciar Sesión - {{ tienda.nombre }}{% endblock %}
+
+{% block extra_styles %}
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--gray-900) 0%, var(--gray-800) 100%);
+}
+
+.login-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: 40px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: var(--shadow-lg);
+}
+
+.login-logo {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.login-logo h1 {
+    font-size: 24px;
+    color: var(--gray-900);
+    margin-bottom: 8px;
+}
+
+.login-logo p {
+    color: var(--gray-500);
+    font-size: 14px;
+}
+
+.login-icon {
+    width: 60px;
+    height: 60px;
+    background: var(--primary);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    font-size: 28px;
+}
+
+.login-form .btn {
+    width: 100%;
+    margin-top: 8px;
+}
+
+.login-footer {
+    text-align: center;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--gray-200);
+}
+
+.login-footer a {
+    color: var(--primary);
+    font-weight: 500;
+}
+{% endblock %}
+
+{% block content %}
+<div class="login-page">
+    <div class="login-card">
+        <div class="login-logo">
+            <div class="login-icon">🍽️</div>
+            <h1>{{ tienda.nombre if tienda else 'Restaurante' }}</h1>
+            <p>Panel de Administración</p>
+        </div>
+
+        <form class="login-form" method="POST">
+            <div class="form-group">
+                <label class="form-label">Correo electrónico</label>
+                <input type="email" name="email" class="form-input" placeholder="correo@ejemplo.com" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Contraseña</label>
+                <input type="password" name="password" class="form-input" placeholder="••••••••" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg">
+                Iniciar Sesión
+            </button>
+        </form>
+
+        <div class="login-footer">
+            <a href="{{ url_for('index') }}">← Volver al menú</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

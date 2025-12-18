@@ -1,0 +1,528 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block page_title %}Productos{% endblock %}
+
+{% block admin_content %}
+<style>
+    .badge-btn {
+        padding: 4px 8px;
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        font-size: 10px;
+        font-weight: 600;
+        margin: 2px;
+        transition: all 0.2s;
+    }
+    .badge-btn:hover { opacity: 0.8; transform: scale(1.05); }
+    .badge-btn.active { box-shadow: 0 0 0 2px #333; }
+    .badge-nuevo { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+    .badge-popular { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+    .badge-mas_vendido { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+    .badge-none { background: #e5e7eb; color: #6b7280; }
+    .badge-display { display: inline-block; padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+    .recalc-btn { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+
+    /* Estilos para imagen */
+    .product-thumb {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        object-fit: cover;
+        margin-right: 10px;
+        vertical-align: middle;
+        background: #f3f4f6;
+    }
+    .product-thumb-placeholder {
+        width: 50px;
+        height: 50px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #e5e7eb, #d1d5db);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+        vertical-align: middle;
+        color: #9ca3af;
+        font-size: 18px;
+    }
+    .product-info {
+        display: inline-block;
+        vertical-align: middle;
+    }
+    .image-upload-area {
+        border: 2px dashed #d1d5db;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: #f9fafb;
+    }
+    .image-upload-area:hover {
+        border-color: #6366f1;
+        background: #eef2ff;
+    }
+    .image-upload-area.has-image {
+        border-style: solid;
+        border-color: #10b981;
+    }
+    .image-preview {
+        max-width: 150px;
+        max-height: 150px;
+        border-radius: 8px;
+        margin-top: 10px;
+    }
+    .image-upload-icon {
+        font-size: 32px;
+        color: #9ca3af;
+        margin-bottom: 8px;
+    }
+    .image-upload-text {
+        color: #6b7280;
+        font-size: 14px;
+    }
+    .image-url-input {
+        margin-top: 10px;
+        font-size: 12px;
+    }
+
+    /* Estilos variantes */
+    .variantes-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        background: #f3f4f6;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+    .variantes-toggle input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+    }
+    .variantes-section {
+        display: none;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 15px;
+        background: #fafafa;
+    }
+    .variantes-section.active {
+        display: block;
+    }
+    .variante-item {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+        padding: 10px;
+        background: white;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+    }
+    .variante-item input {
+        flex: 1;
+    }
+    .variante-item .btn-remove {
+        background: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        width: 30px;
+        height: 30px;
+        cursor: pointer;
+    }
+    .btn-add-variante {
+        background: #10b981;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+    }
+    .btn-add-variante:hover {
+        background: #059669;
+    }
+</style>
+
+<div class="action-bar">
+    <div class="action-bar-left">
+        <span>{{ productos|length }} productos</span>
+        <button class="btn btn-sm recalc-btn" onclick="recalcularBadges()" style="margin-left: 10px; color: white;">
+            Recalcular Badges
+        </button>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('modalNuevo')">
+        + Nuevo Producto
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body" style="padding: 0;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Categoria</th>
+                    <th>Precio</th>
+                    <th>Badge</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for producto in productos %}
+                <tr id="producto-row-{{ producto.id }}">
+                    <td>
+                        {% if producto.imagen %}
+                        <img src="{{ producto.imagen }}" alt="" class="product-thumb">
+                        {% else %}
+                        <span class="product-thumb-placeholder"><i class="fas fa-utensils"></i></span>
+                        {% endif %}
+                        <div class="product-info">
+                            <strong>{{ producto.nombre }}</strong>
+                            {% if producto.descripcion %}
+                            <div class="text-muted" style="font-size: 12px;">{{ producto.descripcion[:50] }}...</div>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>{{ producto.categoria_nombre or 'Sin categoria' }}</td>
+                    <td><strong>${{ "%.2f"|format(producto.precio) }}</strong></td>
+                    <td>
+                        <div class="badge-selector" data-producto-id="{{ producto.id }}">
+                            <button class="badge-btn badge-none {% if not producto.badge %}active{% endif %}"
+                                    onclick="setBadge({{ producto.id }}, null)" title="Sin badge">X</button>
+                            <button class="badge-btn badge-nuevo {% if producto.badge == 'nuevo' %}active{% endif %}"
+                                    onclick="setBadge({{ producto.id }}, 'nuevo')" title="Nuevo">N</button>
+                            <button class="badge-btn badge-popular {% if producto.badge == 'popular' %}active{% endif %}"
+                                    onclick="setBadge({{ producto.id }}, 'popular')" title="Popular">P</button>
+                            <button class="badge-btn badge-mas_vendido {% if producto.badge == 'mas_vendido' %}active{% endif %}"
+                                    onclick="setBadge({{ producto.id }}, 'mas_vendido')" title="Top Ventas">T</button>
+                        </div>
+                    </td>
+                    <td>
+                        {% if producto.disponible %}
+                            <span class="badge badge-success">Disponible</span>
+                        {% else %}
+                            <span class="badge badge-danger">No disponible</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="flex gap-2">
+                            <button class="btn btn-secondary btn-sm" onclick="editarProducto({{ producto|tojson }})">
+                                Editar
+                            </button>
+                            <form action="{{ url_for('admin_producto_eliminar', id=producto.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Eliminar este producto?')">
+                                <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted" style="padding: 40px;">
+                        No hay productos. Crea el primero!
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Nuevo Producto -->
+<div class="modal" id="modalNuevo">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Nuevo Producto</h3>
+            <button class="modal-close" onclick="closeModal('modalNuevo')">&times;</button>
+        </div>
+        <form action="{{ url_for('admin_producto_crear') }}" method="POST" enctype="multipart/form-data">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Imagen del Producto</label>
+                    <div class="image-upload-area" onclick="document.getElementById('nuevoImagenFile').click()">
+                        <div class="image-upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                        <div class="image-upload-text">Click para subir imagen</div>
+                        <img id="nuevoImagenPreview" class="image-preview" style="display: none;">
+                    </div>
+                    <input type="file" id="nuevoImagenFile" name="imagen_file" accept="image/*" style="display: none;" onchange="previewImage(this, 'nuevoImagenPreview')">
+                    <div class="image-url-input">
+                        <label class="form-label" style="font-size: 12px; margin-top: 10px;">O pega una URL de imagen:</label>
+                        <input type="text" name="imagen_url" class="form-input" placeholder="https://ejemplo.com/imagen.jpg" style="font-size: 12px;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nombre *</label>
+                    <input type="text" name="nombre" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Descripcion</label>
+                    <textarea name="descripcion" class="form-input" rows="2"></textarea>
+                </div>
+                <div class="grid grid-2 gap-3">
+                    <div class="form-group">
+                        <label class="form-label">Precio *</label>
+                        <input type="number" name="precio" id="nuevoPrecio" class="form-input" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Categoria</label>
+                        <select name="categoria_id" class="form-select">
+                            <option value="">Sin categoria</option>
+                            {% for cat in categorias %}
+                            <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Seccion de variantes -->
+                <div class="form-group">
+                    <div class="variantes-toggle">
+                        <input type="checkbox" id="nuevoTieneVariantes" name="tiene_variantes" value="1" onchange="toggleVariantes('nuevo')">
+                        <label for="nuevoTieneVariantes" style="margin: 0; cursor: pointer;">
+                            <strong>Este producto tiene variantes</strong>
+                            <div style="font-size: 12px; color: #6b7280;">Ej: Tamanos (Chico, Mediano, Grande) con diferentes precios</div>
+                        </label>
+                    </div>
+                    <div id="nuevoVariantesSection" class="variantes-section">
+                        <div style="margin-bottom: 10px; font-size: 13px; color: #374151;">
+                            <i class="fas fa-info-circle"></i> Si activas variantes, el precio base sera ignorado y se usaran los precios de cada variante.
+                        </div>
+                        <div id="nuevoVariantesList">
+                            <!-- Variantes se agregan aqui -->
+                        </div>
+                        <button type="button" class="btn-add-variante" onclick="agregarVariante('nuevo')">
+                            <i class="fas fa-plus"></i> Agregar Variante
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modalNuevo')">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Crear Producto</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Editar Producto -->
+<div class="modal" id="modalEditar">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Editar Producto</h3>
+            <button class="modal-close" onclick="closeModal('modalEditar')">&times;</button>
+        </div>
+        <form id="formEditar" method="POST" enctype="multipart/form-data">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Imagen del Producto</label>
+                    <div class="image-upload-area" id="editImagenArea" onclick="document.getElementById('editImagenFile').click()">
+                        <div class="image-upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                        <div class="image-upload-text">Click para cambiar imagen</div>
+                        <img id="editImagenPreview" class="image-preview" style="display: none;">
+                    </div>
+                    <input type="file" id="editImagenFile" name="imagen_file" accept="image/*" style="display: none;" onchange="previewImage(this, 'editImagenPreview')">
+                    <div class="image-url-input">
+                        <label class="form-label" style="font-size: 12px; margin-top: 10px;">O pega una URL de imagen:</label>
+                        <input type="text" name="imagen_url" id="editImagenUrl" class="form-input" placeholder="https://ejemplo.com/imagen.jpg" style="font-size: 12px;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nombre *</label>
+                    <input type="text" name="nombre" id="editNombre" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Descripcion</label>
+                    <textarea name="descripcion" id="editDescripcion" class="form-input" rows="2"></textarea>
+                </div>
+                <div class="grid grid-2 gap-3">
+                    <div class="form-group">
+                        <label class="form-label">Precio *</label>
+                        <input type="number" name="precio" id="editPrecio" class="form-input" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Categoria</label>
+                        <select name="categoria_id" id="editCategoria" class="form-select">
+                            <option value="">Sin categoria</option>
+                            {% for cat in categorias %}
+                            <option value="{{ cat.id }}">{{ cat.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" name="disponible" id="editDisponible" value="1">
+                        Disponible para venta
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modalEditar')">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+function previewImage(input, previewId) {
+    const preview = document.getElementById(previewId);
+    const uploadArea = input.closest('.modal-body').querySelector('.image-upload-area');
+
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+            uploadArea.classList.add('has-image');
+            uploadArea.querySelector('.image-upload-icon').style.display = 'none';
+            uploadArea.querySelector('.image-upload-text').textContent = 'Click para cambiar';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function editarProducto(producto) {
+    document.getElementById('formEditar').action = '/admin/productos/' + producto.id + '/editar';
+    document.getElementById('editNombre').value = producto.nombre;
+    document.getElementById('editDescripcion').value = producto.descripcion || '';
+    document.getElementById('editPrecio').value = producto.precio;
+    document.getElementById('editCategoria').value = producto.categoria_id || '';
+    document.getElementById('editDisponible').checked = producto.disponible == 1;
+    document.getElementById('editImagenUrl').value = producto.imagen || '';
+
+    // Mostrar imagen actual si existe
+    const preview = document.getElementById('editImagenPreview');
+    const uploadArea = document.getElementById('editImagenArea');
+
+    if (producto.imagen) {
+        preview.src = producto.imagen;
+        preview.style.display = 'block';
+        uploadArea.classList.add('has-image');
+        uploadArea.querySelector('.image-upload-icon').style.display = 'none';
+        uploadArea.querySelector('.image-upload-text').textContent = 'Click para cambiar';
+    } else {
+        preview.style.display = 'none';
+        uploadArea.classList.remove('has-image');
+        uploadArea.querySelector('.image-upload-icon').style.display = 'block';
+        uploadArea.querySelector('.image-upload-text').textContent = 'Click para subir imagen';
+    }
+
+    openModal('modalEditar');
+}
+
+function setBadge(productoId, badge) {
+    fetch('/api/v1/productos/' + productoId + '/badge', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ badge: badge })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const selector = document.querySelector('[data-producto-id="' + productoId + '"]');
+            selector.querySelectorAll('.badge-btn').forEach(btn => btn.classList.remove('active'));
+
+            if (badge === null) {
+                selector.querySelector('.badge-none').classList.add('active');
+            } else {
+                selector.querySelector('.badge-' + badge).classList.add('active');
+            }
+        }
+    })
+    .catch(err => console.error('Error:', err));
+}
+
+function recalcularBadges() {
+    if (!confirm('Recalcular todos los badges automaticamente?\n\n- Nuevo: Productos de los ultimos 7 dias\n- Popular: Mas pedidos del mes\n- Top Ventas: Producto mas vendido')) {
+        return;
+    }
+
+    fetch('/api/v1/badges/recalcular', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let msg = 'Badges recalculados!\n\n';
+            for (let badge in data.badges_asignados) {
+                msg += badge + ': ' + data.badges_asignados[badge] + ' productos\n';
+            }
+            alert(msg);
+            location.reload();
+        }
+    })
+    .catch(err => console.error('Error:', err));
+}
+
+document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', function(e) {
+        if (e.target === this) closeModal(this.id);
+    });
+});
+
+// Funciones para variantes
+let varianteCounter = { nuevo: 0, edit: 0 };
+
+function toggleVariantes(prefix) {
+    const checkbox = document.getElementById(prefix + 'TieneVariantes');
+    const section = document.getElementById(prefix + 'VariantesSection');
+    const precioInput = document.getElementById(prefix + 'Precio');
+
+    if (checkbox.checked) {
+        section.classList.add('active');
+        precioInput.removeAttribute('required');
+        precioInput.value = '0';
+        precioInput.closest('.form-group').style.opacity = '0.5';
+        // Agregar 2 variantes por defecto
+        if (document.getElementById(prefix + 'VariantesList').children.length === 0) {
+            agregarVariante(prefix);
+            agregarVariante(prefix);
+        }
+    } else {
+        section.classList.remove('active');
+        precioInput.setAttribute('required', 'required');
+        precioInput.closest('.form-group').style.opacity = '1';
+    }
+}
+
+function agregarVariante(prefix) {
+    const list = document.getElementById(prefix + 'VariantesList');
+    const idx = varianteCounter[prefix]++;
+
+    const div = document.createElement('div');
+    div.className = 'variante-item';
+    div.innerHTML = `
+        <input type="text" name="variante_nombre[]" class="form-input" placeholder="Nombre (ej: Grande)" required style="flex: 2;">
+        <input type="number" name="variante_precio[]" class="form-input" placeholder="Precio" step="0.01" min="0" required style="flex: 1;">
+        <button type="button" class="btn-remove" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    list.appendChild(div);
+}
+
+function eliminarVariante(btn) {
+    btn.closest('.variante-item').remove();
+}
+</script>
+{% endblock %}

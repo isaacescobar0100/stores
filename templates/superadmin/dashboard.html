@@ -1,0 +1,116 @@
+{% extends 'superadmin/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Resumen general del sistema{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="fas fa-store"></i></div>
+        <div class="stat-value">{{ stats.total_tiendas }}</div>
+        <div class="stat-label">Tiendas Activas</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-receipt"></i></div>
+        <div class="stat-value">{{ stats.pedidos_hoy }}</div>
+        <div class="stat-label">Pedidos Hoy</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-dollar-sign"></i></div>
+        <div class="stat-value">${{ "{:,.0f}".format(stats.ventas_hoy) }}</div>
+        <div class="stat-label">Ventas Hoy</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon orange"><i class="fas fa-users"></i></div>
+        <div class="stat-value">{{ stats.total_usuarios }}</div>
+        <div class="stat-label">Usuarios Totales</div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Tiendas Recientes -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-store"></i> Tiendas</h3>
+            <a href="/superadmin/tiendas" class="btn btn-sm btn-secondary">Ver Todas</a>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Tienda</th>
+                        <th>Pedidos Hoy</th>
+                        <th>Ventas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tienda in tiendas_stats %}
+                    <tr>
+                        <td>
+                            <strong>{{ tienda.nombre }}</strong><br>
+                            <small style="color: var(--gray);">{{ tienda.subdominio }}.vxplay.online</small>
+                        </td>
+                        <td>{{ tienda.pedidos_hoy }}</td>
+                        <td>${{ "{:,.0f}".format(tienda.ventas_hoy) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pedidos Recientes -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-clock"></i> Pedidos Recientes</h3>
+            <a href="/superadmin/pedidos" class="btn btn-sm btn-secondary">Ver Todos</a>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Pedido</th>
+                        <th>Tienda</th>
+                        <th>Total</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pedido in pedidos_recientes %}
+                    <tr>
+                        <td>#{{ pedido.numero_orden }}</td>
+                        <td>{{ pedido.tienda_nombre }}</td>
+                        <td>${{ "{:,.0f}".format(pedido.total) }}</td>
+                        <td>
+                            <span class="badge badge-{% if pedido.estado == 'entregado' %}success{% elif pedido.estado == 'preparando' %}warning{% else %}info{% endif %}">
+                                {{ pedido.estado }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Grafico de Ventas (placeholder) -->
+<div class="card" style="margin-top: 20px;">
+    <div class="card-header">
+        <h3><i class="fas fa-chart-area"></i> Ventas Ultimos 7 Dias</h3>
+    </div>
+    <div class="card-body">
+        <div style="display: flex; align-items: flex-end; height: 200px; gap: 10px; justify-content: space-around;">
+            {% for dia in ventas_semana %}
+            <div style="text-align: center;">
+                <div style="background: var(--primary); width: 40px; height: {{ dia.porcentaje }}%; border-radius: 4px 4px 0 0; min-height: 20px;"></div>
+                <small style="color: var(--gray); display: block; margin-top: 8px;">{{ dia.nombre }}</small>
+                <small style="color: var(--dark); font-weight: 600;">${{ "{:,.0f}".format(dia.total) }}</small>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

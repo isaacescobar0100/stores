@@ -1,0 +1,177 @@
+{% extends 'superadmin/base.html' %}
+
+{% block title %}Exportar Datos{% endblock %}
+{% block page_title %}Exportar Datos{% endblock %}
+{% block page_subtitle %}Descarga reportes y datos del sistema{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+    <!-- Exportar Ventas -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-chart-line"></i> Exportar Ventas</h3>
+        </div>
+        <div class="card-body">
+            <p style="color: var(--gray); margin-bottom: 20px;">
+                Descarga un reporte de ventas con todos los pedidos completados.
+            </p>
+            <div class="form-group">
+                <label>Fecha Desde</label>
+                <input type="date" id="ventasDesde" class="form-control" value="{{ (now - timedelta(days=30)).strftime('%Y-%m-%d') if now else '' }}">
+            </div>
+            <div class="form-group">
+                <label>Fecha Hasta</label>
+                <input type="date" id="ventasHasta" class="form-control" value="{{ now.strftime('%Y-%m-%d') if now else '' }}">
+            </div>
+            <div class="form-group">
+                <label>Tienda</label>
+                <select id="ventasTienda" class="form-control">
+                    <option value="">Todas las tiendas</option>
+                    {% for t in tiendas %}
+                    <option value="{{ t.id }}">{{ t.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="btn btn-success" onclick="exportarVentas()" style="width: 100%;">
+                <i class="fas fa-download"></i> Descargar CSV
+            </button>
+        </div>
+    </div>
+
+    <!-- Exportar Pedidos -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-receipt"></i> Exportar Pedidos</h3>
+        </div>
+        <div class="card-body">
+            <p style="color: var(--gray); margin-bottom: 20px;">
+                Descarga un listado de pedidos con detalles de clientes.
+            </p>
+            <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" id="pedidosFecha" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Estado</label>
+                <select id="pedidosEstado" class="form-control">
+                    <option value="">Todos</option>
+                    <option value="pendiente">Pendiente</option>
+                    <option value="preparando">Preparando</option>
+                    <option value="listo">Listo</option>
+                    <option value="entregado">Entregado</option>
+                    <option value="cancelado">Cancelado</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Tienda</label>
+                <select id="pedidosTienda" class="form-control">
+                    <option value="">Todas las tiendas</option>
+                    {% for t in tiendas %}
+                    <option value="{{ t.id }}">{{ t.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="exportarPedidos()" style="width: 100%;">
+                <i class="fas fa-download"></i> Descargar CSV
+            </button>
+        </div>
+    </div>
+
+    <!-- Exportar Datos de Tienda -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-store"></i> Exportar Tienda Completa</h3>
+        </div>
+        <div class="card-body">
+            <p style="color: var(--gray); margin-bottom: 20px;">
+                Descarga todos los datos de una tienda: productos, clientes, pedidos.
+            </p>
+            <div class="form-group">
+                <label>Seleccionar Tienda</label>
+                <select id="tiendaExportar" class="form-control">
+                    <option value="">-- Seleccionar --</option>
+                    {% for t in tiendas %}
+                    <option value="{{ t.id }}">{{ t.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="btn btn-secondary" onclick="exportarTienda()" style="width: 100%;">
+                <i class="fas fa-file-archive"></i> Descargar Todo
+            </button>
+        </div>
+    </div>
+
+    <!-- Info -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-info-circle"></i> Información</h3>
+        </div>
+        <div class="card-body">
+            <div style="background: var(--light); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <h4 style="margin: 0 0 10px 0;"><i class="fas fa-file-csv" style="color: var(--success);"></i> Formato CSV</h4>
+                <p style="margin: 0; color: var(--gray); font-size: 14px;">
+                    Todos los archivos se exportan en formato CSV, compatible con Excel, Google Sheets y otras hojas de cálculo.
+                </p>
+            </div>
+            <div style="background: var(--light); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <h4 style="margin: 0 0 10px 0;"><i class="fas fa-shield-alt" style="color: var(--primary);"></i> Privacidad</h4>
+                <p style="margin: 0; color: var(--gray); font-size: 14px;">
+                    Los datos exportados contienen información sensible de clientes. Maneja los archivos de forma responsable.
+                </p>
+            </div>
+            <div style="background: #dcfce7; padding: 15px; border-radius: 8px;">
+                <h4 style="margin: 0 0 10px 0;"><i class="fas fa-lightbulb" style="color: var(--success);"></i> Tip</h4>
+                <p style="margin: 0; color: #166534; font-size: 14px;">
+                    Para abrir correctamente en Excel, importa el archivo seleccionando "Datos delimitados por comas".
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+// Establecer fecha por defecto
+document.addEventListener('DOMContentLoaded', function() {
+    const hoy = new Date().toISOString().split('T')[0];
+    const hace30 = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+
+    document.getElementById('ventasDesde').value = hace30;
+    document.getElementById('ventasHasta').value = hoy;
+    document.getElementById('pedidosFecha').value = hoy;
+});
+
+function exportarVentas() {
+    const desde = document.getElementById('ventasDesde').value;
+    const hasta = document.getElementById('ventasHasta').value;
+    const tienda = document.getElementById('ventasTienda').value;
+
+    let url = '/superadmin/api/ventas/exportar?';
+    if (desde) url += `desde=${desde}&`;
+    if (hasta) url += `hasta=${hasta}&`;
+    if (tienda) url += `tienda=${tienda}&`;
+
+    window.open(url, '_blank');
+}
+
+function exportarPedidos() {
+    const fecha = document.getElementById('pedidosFecha').value;
+    const estado = document.getElementById('pedidosEstado').value;
+    const tienda = document.getElementById('pedidosTienda').value;
+
+    let url = '/superadmin/api/pedidos/exportar?';
+    if (fecha) url += `fecha=${fecha}&`;
+    if (estado) url += `estado=${estado}&`;
+    if (tienda) url += `tienda=${tienda}&`;
+
+    window.open(url, '_blank');
+}
+
+function exportarTienda() {
+    const tienda = document.getElementById('tiendaExportar').value;
+    if (!tienda) {
+        alert('Selecciona una tienda');
+        return;
+    }
+    window.open(`/superadmin/api/exportar/tienda/${tienda}`, '_blank');
+}
+</script>
+{% endblock %}

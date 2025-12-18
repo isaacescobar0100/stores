@@ -1,0 +1,98 @@
+version: '3.8'
+
+# NOTA: Nginx y SSL se manejan por el sistema host (no Docker)
+# Config en: /etc/nginx/sites-available/vxplay
+# Certificados en: /etc/letsencrypt/live/
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: restaurante-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-restaurante_root_2024}
+      MYSQL_DATABASE: restaurantes
+      MYSQL_USER: restaurante
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-restaurante_pass_2024}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-restaurante_root_2024}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: restaurante-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: restaurante-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: restaurante
+      PMA_PASSWORD: ${MYSQL_PASSWORD:-restaurante_pass_2024}
+      UPLOAD_LIMIT: 100M
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-mi-clave-secreta-produccion}
+      - FLASK_DEBUG=False
+      - DOMINIO_BASE=${DOMINIO_BASE:-localhost:5000}
+      - DB_TYPE=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_NAME=restaurantes
+      - DB_USER=restaurante
+      - DB_PASSWORD=${MYSQL_PASSWORD:-restaurante_pass_2024}
+      - REDIS_URL=redis://redis:6379/0
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
+    volumes:
+      - ./data:/app/data
+      - ./app.py:/app/app.py
+      - ./models.py:/app/models.py
+      - ./templates:/app/templates
+      - ./superadmin_routes.py:/app/superadmin_routes.py
+      - ./static:/app/static
+      - ./cloudflare_dns.py:/app/cloudflare_dns.py
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  mysql_data:
+  redis_data:

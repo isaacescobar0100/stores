@@ -1,0 +1,48 @@
+# Variables de entorno (NUNCA subir)
+.env
+.env.local
+.env.production
+
+# Python
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+
+# Archivos temporales
+*.bak
+*.log
+*.tmp
+nul
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Uploads de usuarios
+uploads/
+static/uploads/
+
+# Ejecutables compilados localmente
+*.spec
+build/
+dist_cliente/
+static/launcher/build/
+static/launcher/dist/
+
+# IDEs
+.vscode/
+.idea/
+
+# Bases de datos locales
+data/*.db
+
+# Scripts de prueba/debug (no necesarios en produccion)
+check_*.py
+test_*.py
+fix_*.py
+verify_*.py
+add_*.py

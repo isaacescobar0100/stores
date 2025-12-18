@@ -1,0 +1,15 @@
+{
+  "servidor_url": "https://elparche.vxplay.online/",
+  "tienda_slug": "elparche",
+  "token": "3:7:1766027066:b1f0a5fee50fa35e8858",
+  "user": {
+    "id": 7,
+    "nombre": "Admin El Parche",
+    "rol": "admin"
+  },
+  "tienda": {
+    "id": 3,
+    "nombre": "El Parche",
+    "slug": "elparche"
+  }
+}

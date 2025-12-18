@@ -1,0 +1,238 @@
+{% extends "superadmin/base.html" %}
+
+{% block title %}Backups{% endblock %}
+{% block page_title %}Backups de Base de Datos{% endblock %}
+{% block page_subtitle %}Gestiona los backups de MySQL{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-database"></i> Backups Disponibles</h3>
+        <button class="btn btn-primary" onclick="crearBackup()">
+            <i class="fas fa-plus"></i> Crear Backup Ahora
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info" style="margin-bottom: 20px;">
+            <i class="fas fa-info-circle"></i>
+            Los backups se crean automáticamente cada día a las 3:00 AM. Se conservan los últimos 7 días.
+        </div>
+
+        <div id="backupsList">
+            <div class="loading-placeholder" style="text-align: center; padding: 40px;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: var(--gray);"></i>
+                <p style="margin-top: 10px; color: var(--gray);">Cargando backups...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación -->
+<div class="modal" id="modalConfirmar">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header" style="background: var(--danger);">
+            <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación</h3>
+            <button class="modal-close" onclick="cerrarModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>¿Estás seguro de que deseas eliminar este backup?</p>
+            <p><strong id="backupAEliminar"></strong></p>
+            <p style="color: var(--danger); margin-top: 10px;">
+                <i class="fas fa-warning"></i> Esta acción no se puede deshacer.
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+            <button class="btn btn-danger" id="btnConfirmarEliminar">Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.backup-item {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.2s;
+}
+
+.backup-item:hover {
+    background: var(--light);
+}
+
+.backup-item:last-child {
+    border-bottom: none;
+}
+
+.backup-icon {
+    width: 48px;
+    height: 48px;
+    background: #dbeafe;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 16px;
+}
+
+.backup-icon i {
+    font-size: 20px;
+    color: #2563eb;
+}
+
+.backup-info {
+    flex: 1;
+}
+
+.backup-nombre {
+    font-weight: 600;
+    color: var(--dark);
+    margin-bottom: 4px;
+}
+
+.backup-meta {
+    font-size: 13px;
+    color: var(--gray);
+}
+
+.backup-meta span {
+    margin-right: 20px;
+}
+
+.backup-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--gray);
+}
+
+.empty-state i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.empty-state p {
+    font-size: 16px;
+}
+</style>
+
+<script>
+let backupPendienteEliminar = null;
+
+document.addEventListener('DOMContentLoaded', cargarBackups);
+
+async function cargarBackups() {
+    try {
+        const response = await fetch('/superadmin/api/backups');
+        const data = await response.json();
+
+        const container = document.getElementById('backupsList');
+
+        if (data.backups && data.backups.length > 0) {
+            container.innerHTML = data.backups.map(backup => `
+                <div class="backup-item">
+                    <div class="backup-icon">
+                        <i class="fas fa-file-archive"></i>
+                    </div>
+                    <div class="backup-info">
+                        <div class="backup-nombre">${backup.nombre}</div>
+                        <div class="backup-meta">
+                            <span><i class="fas fa-calendar"></i> ${backup.fecha}</span>
+                            <span><i class="fas fa-weight-hanging"></i> ${backup.tamano}</span>
+                        </div>
+                    </div>
+                    <div class="backup-actions">
+                        <a href="/superadmin/api/backups/descargar/${backup.nombre}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-download"></i> Descargar
+                        </a>
+                        <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('${backup.nombre}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-database"></i>
+                    <p>No hay backups disponibles</p>
+                    <button class="btn btn-primary" style="margin-top: 20px;" onclick="crearBackup()">
+                        <i class="fas fa-plus"></i> Crear primer backup
+                    </button>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('error', 'Error', 'No se pudieron cargar los backups');
+    }
+}
+
+async function crearBackup() {
+    showLoading('Creando backup...');
+
+    try {
+        const response = await fetch('/superadmin/api/backups/crear', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+        hideLoading();
+
+        if (data.success) {
+            showToast('success', 'Éxito', 'Backup creado correctamente');
+            cargarBackups();
+        } else {
+            showToast('error', 'Error', data.error || 'No se pudo crear el backup');
+        }
+    } catch (error) {
+        hideLoading();
+        showToast('error', 'Error', 'Error al crear el backup');
+    }
+}
+
+function confirmarEliminar(nombre) {
+    backupPendienteEliminar = nombre;
+    document.getElementById('backupAEliminar').textContent = nombre;
+    document.getElementById('modalConfirmar').classList.add('active');
+
+    document.getElementById('btnConfirmarEliminar').onclick = () => eliminarBackup(nombre);
+}
+
+function cerrarModal() {
+    document.getElementById('modalConfirmar').classList.remove('active');
+    backupPendienteEliminar = null;
+}
+
+async function eliminarBackup(nombre) {
+    cerrarModal();
+    showLoading('Eliminando backup...');
+
+    try {
+        const response = await fetch(`/superadmin/api/backups/eliminar/${nombre}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+        hideLoading();
+
+        if (data.success) {
+            showToast('success', 'Éxito', 'Backup eliminado');
+            cargarBackups();
+        } else {
+            showToast('error', 'Error', data.error || 'No se pudo eliminar');
+        }
+    } catch (error) {
+        hideLoading();
+        showToast('error', 'Error', 'Error al eliminar el backup');
+    }
+}
+</script>
+{% endblock %}

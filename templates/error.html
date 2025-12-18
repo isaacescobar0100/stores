@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block title %}Error{% endblock %}
+
+{% block content %}
+<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+    <div style="text-align: center; padding: 40px;">
+        <div style="font-size: 64px; margin-bottom: 16px;">😕</div>
+        <h1 style="font-size: 24px; margin-bottom: 8px;">{{ mensaje or 'Algo salió mal' }}</h1>
+        <p style="color: var(--gray-500); margin-bottom: 24px;">Lo sentimos, ocurrió un error</p>
+        <a href="/" class="btn btn-primary">Volver al inicio</a>
+    </div>
+</div>
+{% endblock %}

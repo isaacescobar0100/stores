@@ -1,0 +1,789 @@
+{% extends 'base.html' %}
+
+{% block title %}Cocina - {{ tienda.nombre }}{% endblock %}
+
+{% block extra_styles %}
+body {
+    background: #1a1a2e;
+}
+
+.cocina-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.cocina-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.cocina-logo-icon {
+    font-size: 28px;
+}
+
+.cocina-stats {
+    display: flex;
+    gap: 24px;
+}
+
+.cocina-stat {
+    text-align: center;
+}
+
+.cocina-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.cocina-stat-label {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.cocina-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.auto-print-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.2);
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.auto-print-toggle input {
+    width: 18px;
+    height: 18px;
+}
+
+.auto-print-toggle.active {
+    background: #10b981;
+}
+
+.cocina-main {
+    padding: 24px;
+}
+
+.pedidos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+}
+
+.pedido-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.pedido-header {
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pedido-header.pendiente { background: #fef3c7; }
+.pedido-header.confirmado { background: #dbeafe; }
+.pedido-header.preparando { background: #dcfce7; }
+
+.pedido-numero {
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.pedido-tiempo {
+    font-size: 14px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(0,0,0,0.1);
+    font-weight: 600;
+}
+
+.pedido-info {
+    padding: 16px;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.pedido-cliente {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.pedido-tipo {
+    font-size: 14px;
+    color: var(--gray-500);
+}
+
+.pedido-items {
+    padding: 16px;
+}
+
+.pedido-item {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--gray-200);
+}
+
+.pedido-item:last-child { border-bottom: none; }
+
+.pedido-item-qty {
+    width: 32px;
+    height: 32px;
+    background: var(--primary);
+    color: white;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.pedido-item-name {
+    font-weight: 600;
+}
+
+.pedido-item-notes {
+    font-size: 12px;
+    color: var(--gray-500);
+}
+
+.pedido-notas {
+    padding: 12px 16px;
+    background: #fef3c7;
+    font-size: 13px;
+    color: #92400e;
+}
+
+.pedido-actions {
+    padding: 16px;
+    display: flex;
+    gap: 12px;
+}
+
+.pedido-actions .btn {
+    flex: 1;
+    padding: 14px;
+    font-size: 15px;
+}
+
+.btn-confirmar { background: #3b82f6; color: white; }
+.btn-preparar { background: #10b981; color: white; }
+.btn-listo { background: #8b5cf6; color: white; }
+.btn-print { background: #6b7280; color: white; }
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: white;
+}
+
+.empty-icon { font-size: 64px; margin-bottom: 16px; }
+.empty-title { font-size: 24px; margin-bottom: 8px; }
+.empty-text { color: var(--gray-400); }
+
+/* Print Ticket Styles */
+#printFrame {
+    display: none;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #printArea, #printArea * {
+        visibility: visible;
+    }
+    #printArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 80mm;
+    }
+}
+
+/* Ticket styles for thermal printer */
+.ticket-print {
+    width: 80mm;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    padding: 10px;
+    background: white;
+    color: black;
+}
+
+.ticket-print .ticket-header {
+    text-align: center;
+    border-bottom: 2px dashed #000;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+.ticket-print .ticket-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.ticket-print .ticket-order {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.ticket-print .ticket-info {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed #000;
+}
+
+.ticket-print .ticket-items {
+    margin-bottom: 10px;
+}
+
+.ticket-print .ticket-item {
+    display: flex;
+    margin-bottom: 8px;
+}
+
+.ticket-print .ticket-item-qty {
+    width: 30px;
+    font-weight: bold;
+}
+
+.ticket-print .ticket-item-name {
+    flex: 1;
+}
+
+.ticket-print .ticket-notes {
+    padding: 8px;
+    background: #f0f0f0;
+    margin-top: 10px;
+    font-style: italic;
+}
+
+.ticket-print .ticket-footer {
+    text-align: center;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 2px dashed #000;
+    font-size: 10px;
+}
+
+/* New order notification */
+.new-order-alert {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: #10b981;
+    color: white;
+    padding: 16px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    animation: pulse 0.5s ease infinite alternate;
+    z-index: 1000;
+    display: none;
+}
+
+@keyframes pulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.05); }
+}
+
+@media (max-width: 768px) {
+    .cocina-header { flex-direction: column; gap: 16px; padding: 16px; }
+    .pedidos-grid { grid-template-columns: 1fr; }
+}
+{% endblock %}
+
+{% block content %}
+<header class="cocina-header">
+    <div class="cocina-logo">
+        <span class="cocina-logo-icon">👨‍🍳</span>
+        <span>Cocina - {{ tienda.nombre }}</span>
+    </div>
+
+    <div class="cocina-stats">
+        <div class="cocina-stat">
+            <div class="cocina-stat-value" id="statPendientes">0</div>
+            <div class="cocina-stat-label">Pendientes</div>
+        </div>
+        <div class="cocina-stat">
+            <div class="cocina-stat-value" id="statPreparando">0</div>
+            <div class="cocina-stat-label">Preparando</div>
+        </div>
+    </div>
+
+    <div class="cocina-actions">
+        <label class="auto-print-toggle" id="autoPrintToggle">
+            <input type="checkbox" id="autoPrintCheck" onchange="toggleAutoPrint()">
+            <span>🖨️ Auto-Imprimir</span>
+        </label>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Admin</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-secondary">Salir</a>
+    </div>
+</header>
+
+<div class="new-order-alert" id="newOrderAlert">
+    🔔 ¡NUEVO PEDIDO!
+</div>
+
+<main class="cocina-main">
+    <div class="pedidos-grid" id="pedidosContainer">
+        <!-- Pedidos se cargan aquí -->
+    </div>
+
+    <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-icon">✨</div>
+        <div class="empty-title">Sin pedidos pendientes</div>
+        <div class="empty-text">Los nuevos pedidos aparecerán aquí automáticamente</div>
+    </div>
+</main>
+
+<!-- Hidden print area -->
+<div id="printArea" style="display: none;"></div>
+
+<!-- iframe for printing -->
+<iframe id="printFrame" name="printFrame"></iframe>
+
+<audio id="notificationSound" preload="auto">
+    <source src="data:audio/wav;base64,UklGRl9vT19teleHhYaJi46RlJeam52goqWoq62vsrS3uby+wMPFyMrNz9LU19nb3d/i5Obo6uzu8PL09vj6/P4AAQMFBwkLDQ8RExUXGRsdHyEjJScpKy0vMTM1Nzk7PT9BQ0VHSUtNT1FTVVdZW11fYWNlZ2lrbW9xc3V3eXt9f4GDhYeJi42PkZOVl5mbnZ+ho6WnqautrK2tra2tra2tra2tra2trKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrA==" type="audio/wav">
+</audio>
+
+<!-- Beep sound for new orders -->
+<audio id="beepSound" preload="auto">
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAAD/f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//f/9//3//fw==" type="audio/wav">
+</audio>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let ultimoPedidoId = 0;
+let autoPrint = localStorage.getItem('cocina_autoprint') === 'true';
+let printedOrders = JSON.parse(localStorage.getItem('printed_orders') || '[]');
+let firstLoadPrint = false; // No imprimir en primera carga automaticamente
+let tiendaNombre = '{{ tienda.nombre }}';
+
+// Initialize auto-print toggle
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('autoPrintCheck').checked = autoPrint;
+    if (autoPrint) {
+        document.getElementById('autoPrintToggle').classList.add('active');
+    }
+});
+
+function toggleAutoPrint() {
+    autoPrint = document.getElementById('autoPrintCheck').checked;
+    localStorage.setItem('cocina_autoprint', autoPrint);
+    document.getElementById('autoPrintToggle').classList.toggle('active', autoPrint);
+
+    if (autoPrint) {
+        alert('✅ Impresión automática ACTIVADA\n\nCada pedido nuevo se imprimirá automáticamente.');
+    }
+}
+
+function cargarPedidos() {
+    fetch('/api/cocina/pedidos')
+        .then(r => r.json())
+        .then(pedidos => {
+            renderPedidos(pedidos);
+            actualizarStats(pedidos);
+
+            // Check for new orders (pendientes que no hemos impreso)
+            const nuevosPedidos = pedidos.filter(p => 
+                p.estado === 'pendiente' && !printedOrders.includes(p.id)
+            );
+
+            // Si es primera carga, solo imprimir los que llegaron mientras estabamos fuera
+            const esNuevoPedido = nuevosPedidos.some(p => p.id > ultimoPedidoId);
+            
+            if (nuevosPedidos.length > 0 && (ultimoPedidoId > 0 || firstLoadPrint)) {
+                // New order(s) arrived or pending orders on first load
+                if (esNuevoPedido) {
+                    reproducirSonido();
+                    showNewOrderAlert();
+                }
+
+                // Auto-print if enabled
+                if (autoPrint) {
+                    let printDelay = 0;
+                    nuevosPedidos.forEach(pedido => {
+                        setTimeout(() => {
+                            console.log('Auto-imprimiendo pedido #' + pedido.id);
+                            imprimirTicket(pedido);
+                            printedOrders.push(pedido.id);
+                            localStorage.setItem('printed_orders', JSON.stringify(printedOrders.slice(-50)));
+                        }, printDelay);
+                        printDelay += 2000; // 2 segundos entre cada impresion
+                    });
+                }
+            }
+
+            if (pedidos.length > 0) {
+                ultimoPedidoId = Math.max(...pedidos.map(p => p.id));
+            }
+            
+            // Despues de primera carga, activar impresion para pedidos pendientes
+            firstLoadPrint = true;
+        });
+}
+
+function showNewOrderAlert() {
+    const alert = document.getElementById('newOrderAlert');
+    alert.style.display = 'block';
+    setTimeout(() => {
+        alert.style.display = 'none';
+    }, 3000);
+}
+
+function renderPedidos(pedidos) {
+    const container = document.getElementById('pedidosContainer');
+    const emptyState = document.getElementById('emptyState');
+
+    if (pedidos.length === 0) {
+        container.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+    }
+
+    emptyState.style.display = 'none';
+
+    container.innerHTML = pedidos.map(pedido => `
+        <div class="pedido-card" data-id="${pedido.id}">
+            <div class="pedido-header ${pedido.estado}">
+                <span class="pedido-numero">#${pedido.numero_orden || pedido.id}</span>
+                <span class="pedido-tiempo">${calcularTiempo(pedido.fecha_pedido)}</span>
+            </div>
+
+            <div class="pedido-info">
+                <div class="pedido-cliente">${pedido.cliente_nombre || 'Cliente'}</div>
+                <div class="pedido-tipo">
+                    ${pedido.tipo === 'domicilio' ? '🛵 Domicilio' :
+                      pedido.tipo === 'local' ? '🍽️ Mesa' : '📦 Para llevar'}
+                    ${pedido.tipo === 'domicilio' ? ' - ' + (pedido.direccion_entrega || '') : ''}
+                </div>
+            </div>
+
+            <div class="pedido-items">
+                ${pedido.items.map(item => `
+                    <div class="pedido-item">
+                        <div class="pedido-item-qty">${item.cantidad}</div>
+                        <div>
+                            <div class="pedido-item-name">${item.producto_nombre}</div>
+                            ${item.notas ? `<div class="pedido-item-notes">${item.notas}</div>` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+
+            ${pedido.notas ? `<div class="pedido-notas">📝 ${pedido.notas}</div>` : ''}
+
+            <div class="pedido-actions">
+                <button class="btn btn-print" onclick="imprimirTicketById(${pedido.id})" title="Imprimir">
+                    🖨️
+                </button>
+                ${pedido.estado === 'pendiente' ? `
+                    <button class="btn btn-confirmar" onclick="cambiarEstado(${pedido.id}, 'confirmado')">
+                        ✓ Confirmar
+                    </button>
+                ` : ''}
+                ${pedido.estado === 'confirmado' ? `
+                    <button class="btn btn-preparar" onclick="cambiarEstado(${pedido.id}, 'preparando')">
+                        👨‍🍳 Preparar
+                    </button>
+                ` : ''}
+                ${pedido.estado === 'preparando' ? `
+                    <button class="btn btn-listo" onclick="cambiarEstado(${pedido.id}, 'listo')">
+                        ✓ Listo
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function calcularTiempo(fechaPedido) {
+    const ahora = new Date();
+    const pedido = new Date(fechaPedido);
+    const diff = Math.floor((ahora - pedido) / 60000); // minutos
+
+    if (diff < 1) return 'Ahora';
+    if (diff < 60) return `${diff} min`;
+    return `${Math.floor(diff/60)}h ${diff%60}m`;
+}
+
+function actualizarStats(pedidos) {
+    const pendientes = pedidos.filter(p => p.estado === 'pendiente' || p.estado === 'confirmado').length;
+    const preparando = pedidos.filter(p => p.estado === 'preparando').length;
+
+    document.getElementById('statPendientes').textContent = pendientes;
+    document.getElementById('statPreparando').textContent = preparando;
+}
+
+function cambiarEstado(pedidoId, nuevoEstado) {
+    fetch(`/api/cocina/pedido/${pedidoId}/estado`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: nuevoEstado })
+    })
+    .then(r => r.json())
+    .then(() => cargarPedidos());
+}
+
+function reproducirSonido() {
+    try {
+        // Play multiple beeps for attention
+        const beep = document.getElementById('beepSound');
+        beep.currentTime = 0;
+        beep.play();
+
+        setTimeout(() => {
+            beep.currentTime = 0;
+            beep.play();
+        }, 300);
+
+        setTimeout(() => {
+            beep.currentTime = 0;
+            beep.play();
+        }, 600);
+    } catch(e) {
+        console.log('Error playing sound:', e);
+    }
+}
+
+// Print functions
+let cachedPedidos = [];
+
+function imprimirTicketById(pedidoId) {
+    fetch('/api/cocina/pedidos')
+        .then(r => r.json())
+        .then(pedidos => {
+            const pedido = pedidos.find(p => p.id === pedidoId);
+            if (pedido) {
+                imprimirTicket(pedido);
+            }
+        });
+}
+
+function imprimirTicket(pedido) {
+    const fecha = new Date(pedido.fecha_pedido);
+    const fechaStr = fecha.toLocaleDateString('es-CO') + ' ' + fecha.toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'});
+
+    const ticketHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                @page {
+                    size: 80mm auto;
+                    margin: 0;
+                }
+                body {
+                    font-family: 'Courier New', monospace;
+                    font-size: 12px;
+                    width: 80mm;
+                    margin: 0;
+                    padding: 5mm;
+                    box-sizing: border-box;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 2px dashed #000;
+                    padding-bottom: 8px;
+                    margin-bottom: 8px;
+                }
+                .store-name {
+                    font-size: 16px;
+                    font-weight: bold;
+                }
+                .order-num {
+                    font-size: 28px;
+                    font-weight: bold;
+                    margin: 8px 0;
+                }
+                .order-type {
+                    font-size: 14px;
+                    padding: 4px 8px;
+                    background: #000;
+                    color: #fff;
+                    display: inline-block;
+                    margin: 4px 0;
+                }
+                .info {
+                    margin: 8px 0;
+                    padding-bottom: 8px;
+                    border-bottom: 1px dashed #000;
+                }
+                .info-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin: 4px 0;
+                }
+                .items {
+                    margin: 8px 0;
+                }
+                .item {
+                    display: flex;
+                    margin: 6px 0;
+                    padding-bottom: 6px;
+                    border-bottom: 1px dotted #ccc;
+                }
+                .item-qty {
+                    width: 25px;
+                    font-weight: bold;
+                    font-size: 14px;
+                }
+                .item-name {
+                    flex: 1;
+                    font-size: 13px;
+                }
+                .item-notes {
+                    font-size: 10px;
+                    color: #666;
+                    margin-left: 25px;
+                }
+                .notes {
+                    background: #f0f0f0;
+                    padding: 8px;
+                    margin: 8px 0;
+                    font-style: italic;
+                }
+                .footer {
+                    text-align: center;
+                    margin-top: 12px;
+                    padding-top: 8px;
+                    border-top: 2px dashed #000;
+                    font-size: 10px;
+                }
+                .total-items {
+                    font-weight: bold;
+                    font-size: 14px;
+                    text-align: center;
+                    margin: 8px 0;
+                    padding: 8px;
+                    background: #eee;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="store-name">${tiendaNombre}</div>
+                <div class="order-num">#${pedido.numero_orden || pedido.id}</div>
+                <div class="order-type">${pedido.tipo === 'domicilio' ? '🛵 DOMICILIO' : pedido.tipo === 'local' ? '🍽️ MESA' : '📦 PARA LLEVAR'}</div>
+            </div>
+
+            <div class="info">
+                <div class="info-row">
+                    <span>Cliente:</span>
+                    <span><strong>${pedido.cliente_nombre || 'N/A'}</strong></span>
+                </div>
+                <div class="info-row">
+                    <span>Fecha:</span>
+                    <span>${fechaStr}</span>
+                </div>
+                ${pedido.tipo === 'domicilio' && pedido.direccion_entrega ? `
+                <div class="info-row">
+                    <span>Direccion:</span>
+                </div>
+                <div style="font-size: 11px; margin-top: 4px;"><strong>${pedido.direccion_entrega}</strong></div>
+                ` : ''}
+            </div>
+
+            <div class="items">
+                ${pedido.items.map(item => `
+                    <div class="item">
+                        <div class="item-qty">${item.cantidad}x</div>
+                        <div class="item-name">${item.producto_nombre}</div>
+                    </div>
+                    ${item.notas ? `<div class="item-notes">↳ ${item.notas}</div>` : ''}
+                `).join('')}
+            </div>
+
+            <div class="total-items">
+                TOTAL: ${pedido.items.reduce((sum, i) => sum + i.cantidad, 0)} items
+            </div>
+
+            ${pedido.notas ? `<div class="notes">📝 ${pedido.notas}</div>` : ''}
+
+            <div class="footer">
+                Impreso: ${new Date().toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit', second:'2-digit'})}
+            </div>
+        </body>
+        </html>
+    `;
+
+    // Para impresion silenciosa, abrimos una nueva ventana que se imprime automaticamente
+    const printWindow = window.open('', '_blank', 'width=300,height=600');
+    if (printWindow) {
+        printWindow.document.write(ticketHtml);
+        printWindow.document.close();
+        
+        // Esperar a que cargue y luego imprimir
+        printWindow.onload = function() {
+            printWindow.focus();
+            printWindow.print();
+            // Cerrar ventana despues de imprimir (puede que el usuario cancele)
+            setTimeout(() => {
+                printWindow.close();
+            }, 1000);
+        };
+        
+        // Fallback si onload no dispara
+        setTimeout(() => {
+            try {
+                printWindow.focus();
+                printWindow.print();
+                setTimeout(() => printWindow.close(), 1000);
+            } catch(e) {}
+        }, 500);
+    } else {
+        // Fallback: usar iframe si popup bloqueado
+        const printFrame = document.getElementById('printFrame');
+        const printDoc = printFrame.contentDocument || printFrame.contentWindow.document;
+        printDoc.open();
+        printDoc.write(ticketHtml);
+        printDoc.close();
+        setTimeout(() => {
+            printFrame.contentWindow.focus();
+            printFrame.contentWindow.print();
+        }, 250);
+    }
+}
+
+// Cargar pedidos al inicio y cada 5 segundos
+cargarPedidos();
+setInterval(cargarPedidos, 5000);
+
+// Clean old printed orders on load
+if (printedOrders.length > 50) {
+    printedOrders = printedOrders.slice(-50);
+    localStorage.setItem('printed_orders', JSON.stringify(printedOrders));
+}
+</script>
+{% endblock %}

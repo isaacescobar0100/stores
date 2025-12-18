@@ -70,15 +70,20 @@
 
     <!-- Filtros -->
     <div class="filters-bar">
-        <button class="filter-btn active" data-sort="price-asc" onclick="sortProducts('price-asc', this)">
-            <i class="fas fa-arrow-up"></i> Menor precio
-        </button>
-        <button class="filter-btn" data-sort="price-desc" onclick="sortProducts('price-desc', this)">
-            <i class="fas fa-arrow-down"></i> Mayor precio
-        </button>
-        <button class="filter-btn" data-sort="popular" onclick="sortProducts('popular', this)">
-            <i class="fas fa-fire"></i> Populares
-        </button>
+        <div class="filter-tabs">
+            <button class="filter-tab active" data-sort="price-asc" onclick="sortProducts('price-asc', this)">
+                <span class="filter-tab-icon"><i class="fas fa-sort-amount-down-alt"></i></span>
+                <span class="filter-tab-text">Menor precio</span>
+            </button>
+            <button class="filter-tab" data-sort="price-desc" onclick="sortProducts('price-desc', this)">
+                <span class="filter-tab-icon"><i class="fas fa-sort-amount-up"></i></span>
+                <span class="filter-tab-text">Mayor precio</span>
+            </button>
+            <button class="filter-tab" data-sort="popular" onclick="sortProducts('popular', this)">
+                <span class="filter-tab-icon"><i class="fas fa-star"></i></span>
+                <span class="filter-tab-text">Populares</span>
+            </button>
+        </div>
     </div>
 
     <!-- Nav de Categorías - Skeleton -->
@@ -1164,7 +1169,7 @@ function initFilters() {
 
 function sortProducts(sortType, btn) {
     // Actualizar botón activo
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 
     // Mostrar todas las categorías para ordenar

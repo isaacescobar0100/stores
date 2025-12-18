@@ -16,6 +16,13 @@ import hmac
 import hashlib
 import time
 
+# Cargar variables de entorno desde .env o .env.local
+from dotenv import load_dotenv
+if os.path.exists('.env.local'):
+    load_dotenv('.env.local')
+else:
+    load_dotenv()
+
 # Configurar logging
 logging.basicConfig(
     level=logging.INFO,
@@ -217,7 +224,7 @@ def requiere_login(roles=None):
 def inject_tienda():
     """Inyectar datos de tienda en todos los templates"""
     return {
-        'tienda': g.tienda,
+        'tienda': g.get('tienda'),
         'user': g.get('user')
     }
 

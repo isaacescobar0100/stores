@@ -1,8 +1,8 @@
-// tiendas_fix.js v20251217b
-// Fix para cargar valores de costo_domicilio, pedido_minimo, modo_pedido Y categorias
+// tiendas_fix.js v20251219
+// Fix para cargar valores de costo_domicilio, pedido_minimo, modo_pedido, categorias Y Wompi
 
 (function() {
-    console.log('tiendas_fix.js cargado v20251217b');
+    console.log('tiendas_fix.js cargado v20251219');
 
     // Sobrescribir la funcion editarTienda
     window.editarTienda = function(id) {
@@ -100,6 +100,23 @@
 
             if (typeof actualizarContadorCategorias === 'function') actualizarContadorCategorias();
             console.log('Categorias renderizadas:', catsMaestras.length, 'maestras,', asignadas.length, 'asignadas');
+
+            // Cargar configuración Wompi
+            var wompiActivo = tienda.wompi_activo == 1;
+            var wompiCheckbox = document.getElementById('tiendaWompiActivo');
+            if (wompiCheckbox) {
+                wompiCheckbox.checked = wompiActivo;
+                var wompiCreds = document.getElementById('wompiCredenciales');
+                if (wompiCreds) wompiCreds.style.display = wompiActivo ? 'block' : 'none';
+            }
+            var wompiPublic = document.getElementById('tiendaWompiPublicKey');
+            if (wompiPublic) wompiPublic.value = tienda.wompi_public_key || '';
+            var wompiPrivate = document.getElementById('tiendaWompiPrivateKey');
+            if (wompiPrivate) wompiPrivate.value = tienda.wompi_private_key ? '********' : '';
+            var wompiEvento = document.getElementById('tiendaWompiEventoKey');
+            if (wompiEvento) wompiEvento.value = tienda.wompi_evento_key ? '********' : '';
+            var wompiIntegrity = document.getElementById('tiendaWompiIntegrityKey');
+            if (wompiIntegrity) wompiIntegrity.value = tienda.wompi_integrity_key ? '********' : '';
 
             document.getElementById('modalTienda').classList.add('active');
         })

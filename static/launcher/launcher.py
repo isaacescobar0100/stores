@@ -195,11 +195,11 @@ class LauncherApp(ctk.CTk):
 
         # Configuración ventana
         self.title("VxPlay")
-        self.geometry("700x450")
+        self.geometry("900x450")
         self.resizable(False, False)
 
         # Centrar ventana
-        self._center_window(700, 450)
+        self._center_window(900, 450)
 
         # Crear widgets
         self._create_widgets()
@@ -273,7 +273,7 @@ class LauncherApp(ctk.CTk):
         # Cards container
         cards_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         cards_frame.pack(fill='both', expand=True)
-        cards_frame.grid_columnconfigure((0, 1), weight=1)
+        cards_frame.grid_columnconfigure((0, 1, 2), weight=1)
         cards_frame.grid_rowconfigure(0, weight=1)
 
         # Card Admin
@@ -288,10 +288,22 @@ class LauncherApp(ctk.CTk):
             command=self._open_admin
         )
 
-        # Card Cocina
+        # Card Caja
         self._create_card(
             cards_frame,
             column=1,
+            title="Panel Caja",
+            description="Cobra pedidos y\ngenera links de pago",
+            icon="💰",
+            color="#f59e0b",
+            hover_color="#d97706",
+            command=self._open_caja
+        )
+
+        # Card Cocina
+        self._create_card(
+            cards_frame,
+            column=2,
             title="Panel Cocina",
             description="Visualiza pedidos\nen tiempo real",
             icon="👨‍🍳",
@@ -362,6 +374,11 @@ class LauncherApp(ctk.CTk):
         """Abrir login Admin"""
         self.withdraw()
         login = LoginWindow(self, 'admin', self._on_login_admin, self._back_to_launcher)
+
+    def _open_caja(self):
+        """Abrir login Caja"""
+        self.withdraw()
+        login = LoginWindow(self, 'caja', self._on_login_caja, self._back_to_launcher)
 
     def _open_cocina(self):
         """Abrir login Cocina"""
@@ -480,6 +497,14 @@ class LauncherApp(ctk.CTk):
         app = AdminApp(admin_window, api)
         admin_window.protocol("WM_DELETE_WINDOW", lambda: self._close_panel(admin_window, app))
 
+    def _on_login_caja(self, api, window):
+        """Login caja exitoso"""
+        window.destroy()
+        caja_window = ctk.CTkToplevel(self)
+        from caja_cloud import CajaApp
+        app = CajaApp(caja_window, api)
+        caja_window.protocol("WM_DELETE_WINDOW", lambda: self._close_panel(caja_window, app))
+
     def _on_login_cocina(self, api, window):
         """Login cocina exitoso"""
         window.destroy()
@@ -508,10 +533,16 @@ class LoginWindow(ctk.CTkToplevel):
         self.api = APIClient()
 
         # Configuración
-        color = "#10b981" if tipo == 'admin' else "#ef4444"
+        if tipo == 'admin':
+            color = "#10b981"
+        elif tipo == 'caja':
+            color = "#f59e0b"
+        else:
+            color = "#ef4444"
         self.accent_color = color
 
-        self.title(f"{'Admin' if tipo == 'admin' else 'Cocina'} - Iniciar Sesión")
+        titulos = {'admin': 'Admin', 'caja': 'Caja', 'cocina': 'Cocina'}
+        self.title(f"{titulos.get(tipo, 'Panel')} - Iniciar Sesión")
         self.geometry("420x580")
         self.resizable(False, False)
 
@@ -531,14 +562,16 @@ class LoginWindow(ctk.CTkToplevel):
         container.pack(expand=True, fill='both', padx=40, pady=30)
 
         # Header
-        icon = "👨‍💼" if self.tipo == 'admin' else "👨‍🍳"
+        iconos = {'admin': '👨‍💼', 'caja': '💰', 'cocina': '👨‍🍳'}
+        icon = iconos.get(self.tipo, '👤')
         ctk.CTkLabel(
             container,
             text=icon,
             font=ctk.CTkFont(size=50)
         ).pack(pady=(0, 10))
 
-        titulo = "Panel Admin" if self.tipo == 'admin' else "Panel Cocina"
+        titulos = {'admin': 'Panel Admin', 'caja': 'Panel Caja', 'cocina': 'Panel Cocina'}
+        titulo = titulos.get(self.tipo, 'Panel')
         ctk.CTkLabel(
             container,
             text=titulo,

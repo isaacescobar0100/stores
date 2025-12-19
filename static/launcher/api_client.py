@@ -352,6 +352,16 @@ class APIClient:
         """Eliminar usuario"""
         return self._request('DELETE', f'/api/v1/usuarios/{id}')
 
+    # ============ PAGOS / CAJA ============
+
+    def generar_link_pago(self, pedido_id):
+        """Generar link de pago Wompi para un pedido"""
+        return self._request('POST', f'/api/v1/pedidos/{pedido_id}/generar-link-pago')
+
+    def marcar_pagado_efectivo(self, pedido_id):
+        """Marcar pedido como pagado en efectivo"""
+        return self._request('PUT', f'/api/v1/pedidos/{pedido_id}/estado', {'estado': 'entregado'})
+
 
 # ============ FUNCIONES DE UTILIDAD ============
 

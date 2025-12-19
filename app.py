@@ -2190,6 +2190,82 @@ def wompi_config():
         'sandbox': WOMPI_SANDBOX
     })
 
+@app.route('/api/v1/pedidos/<int:pedido_id>/generar-link-pago', methods=['POST'])
+@api_requiere_auth
+def api_generar_link_pago(pedido_id):
+    """Genera un link de pago Wompi para un pedido existente"""
+    import requests
+
+    # Verificar que Wompi esté configurado
+    if not WOMPI_PRIVATE_KEY:
+        return jsonify({'success': False, 'error': 'Wompi no está configurado'}), 400
+
+    # Obtener pedido
+    pedido = Pedido.obtener_por_id(pedido_id, g.tienda['id'])
+    if not pedido:
+        return jsonify({'success': False, 'error': 'Pedido no encontrado'}), 404
+
+    # Verificar que no esté ya pagado
+    if pedido.get('metodo_pago') == 'wompi':
+        return jsonify({'success': False, 'error': 'Este pedido ya fue pagado con Wompi'}), 400
+
+    total = float(pedido.get('total', 0) or 0)
+    numero_orden = pedido.get('numero_orden', pedido_id)
+    monto_centavos = int(total * 100)
+
+    # Crear payment link en Wompi
+    try:
+        url = f"{WOMPI_API_URL}/payment_links"
+        headers = {
+            'Authorization': f'Bearer {WOMPI_PRIVATE_KEY}',
+            'Content-Type': 'application/json'
+        }
+
+        # Generar referencia única
+        import time
+        referencia = f"PED{pedido_id}-{int(time.time())}"
+
+        payload = {
+            'name': f'Pedido #{numero_orden}',
+            'description': f'Pago del pedido #{numero_orden} - {g.tienda.get("nombre", "")}',
+            'single_use': True,
+            'collect_shipping': False,
+            'currency': 'COP',
+            'amount_in_cents': monto_centavos,
+            'redirect_url': f'https://{g.tienda.get("slug", "")}.vxplay.online/pago/resultado?ref={referencia}'
+        }
+
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        logger.info(f"Wompi payment_links response: {response.status_code} - {response.text[:500]}")
+
+        if response.status_code in (200, 201):
+            data = response.json()
+            link_data = data.get('data', data)
+            payment_link = link_data.get('url') or f"https://checkout.wompi.co/l/{link_data.get('id')}"
+
+            # Guardar referencia en el pedido para poder verificar después
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE pedidos SET notas = CONCAT(COALESCE(notas, ''), %s)
+                WHERE id = %s
+            ''', (f' [WOMPI_REF:{referencia}]', pedido_id))
+            conn.commit()
+            conn.close()
+
+            return jsonify({
+                'success': True,
+                'link': payment_link,
+                'referencia': referencia
+            })
+        else:
+            logger.error(f"Error Wompi: {response.status_code} - {response.text}")
+            return jsonify({'success': False, 'error': 'Error al crear link de pago'}), 500
+
+    except Exception as e:
+        logger.error(f"Error generando link Wompi: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/wompi/crear-transaccion', methods=['POST'])
 @requiere_tienda
 def wompi_crear_transaccion():

@@ -3,7 +3,7 @@
 {% block title %}{{ tienda.nombre }} - Menu{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/cliente.css') }}?v=20251217b">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cliente.css') }}?v=20251218b">
 {% endblock %}
 
 {% block extra_styles %}
@@ -55,11 +55,36 @@
         </div>
     </section>
 
-    <!-- Barra de busqueda -->
-    <div class="search-container">
+    <!-- Barra de busqueda mejorada -->
+    <div class="search-container" id="searchContainer">
         <i class="fas fa-search search-icon"></i>
-        <input type="text" class="search-input" id="searchInput" placeholder="Buscar productos..." oninput="searchProducts(this.value)">
-        <button class="search-clear" id="searchClear" onclick="clearSearch()">x</button>
+        <input type="text" class="search-input" id="searchInput"
+               placeholder="Buscar productos..."
+               oninput="handleSearchInput(this.value)"
+               onfocus="showSearchDropdown()"
+               autocomplete="off">
+        <button class="search-clear" id="searchClear" onclick="clearSearch()">
+            <i class="fas fa-times"></i>
+        </button>
+
+        <!-- Dropdown de sugerencias -->
+        <div class="search-dropdown" id="searchDropdown">
+            <!-- Historial de búsquedas -->
+            <div class="search-dropdown-section" id="searchHistorySection" style="display: none;">
+                <div class="search-dropdown-title">
+                    <i class="fas fa-history"></i> Búsquedas recientes
+                </div>
+                <div id="searchHistoryList"></div>
+            </div>
+
+            <!-- Sugerencias de productos -->
+            <div class="search-dropdown-section" id="searchSuggestionsSection" style="display: none;">
+                <div class="search-dropdown-title">
+                    <i class="fas fa-utensils"></i> Productos
+                </div>
+                <div id="searchSuggestionsList"></div>
+            </div>
+        </div>
     </div>
 
     <!-- Mensaje sin resultados -->
@@ -68,8 +93,8 @@
         <p>No se encontraron productos</p>
     </div>
 
-    <!-- Filtros -->
-    <div class="filters-bar">
+    <!-- Filtros (ocultos por defecto, se muestran al seleccionar categoría) -->
+    <div class="filters-bar" id="filtersBar" style="display: none;">
         <div class="filter-tabs">
             <button class="filter-tab active" data-sort="price-asc" onclick="sortProducts('price-asc', this)">
                 <span class="filter-tab-icon"><i class="fas fa-sort-amount-down-alt"></i></span>
@@ -101,20 +126,38 @@
     </nav>
 
     <!-- Nav de Categorías - Real -->
-    <nav class="category-nav" id="categoryNav">
-        <ul class="category-nav-list">
-            {% for categoria, data in menu.items() %}
-            {% if data %}
-            <li class="category-nav-item{% if loop.first %} active{% endif %}" onclick="filterCategory('{{ categoria|replace(' ', '-')|lower }}', this)" data-category="{{ categoria|replace(' ', '-')|lower }}">
-                <div class="category-pill">
-                    <img class="category-thumb" src="{{ data.icono if data.icono else categoria_images.get(categoria, 'https://source.unsplash.com/featured/?food') }}" alt="{{ categoria }}" loading="lazy">
-                    <span class="category-label">{{ categoria }}</span>
-                </div>
-            </li>
-            {% endif %}
-            {% endfor %}
-        </ul>
-    </nav>
+    <div class="category-nav-wrapper" id="categoryNavWrapper">
+        <!-- Flecha izquierda -->
+        <button class="category-nav-arrow category-nav-arrow-left" id="categoryNavLeft" onclick="scrollCategories('left')">
+            <i class="bi bi-chevron-left"></i>
+        </button>
+
+        <!-- Gradiente izquierdo -->
+        <div class="category-nav-fade category-nav-fade-left"></div>
+
+        <nav class="category-nav" id="categoryNav">
+            <ul class="category-nav-list">
+                {% for categoria, data in menu.items() %}
+                {% if data %}
+                <li class="category-nav-item{% if loop.first %} active{% endif %}" onclick="filterCategory('{{ categoria|replace(' ', '-')|lower }}', this)" data-category="{{ categoria|replace(' ', '-')|lower }}">
+                    <div class="category-pill">
+                        <img class="category-thumb" src="{{ data.icono if data.icono else categoria_images.get(categoria, 'https://source.unsplash.com/featured/?food') }}" alt="{{ categoria }}" loading="lazy">
+                        <span class="category-label">{{ categoria }}</span>
+                    </div>
+                </li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+        </nav>
+
+        <!-- Gradiente derecho -->
+        <div class="category-nav-fade category-nav-fade-right"></div>
+
+        <!-- Flecha derecha -->
+        <button class="category-nav-arrow category-nav-arrow-right" id="categoryNavRight" onclick="scrollCategories('right')">
+            <i class="bi bi-chevron-right"></i>
+        </button>
+    </div>
 
     <!-- Productos Skeleton -->
     <div class="skeletons-container loading" id="productSkeletons">
@@ -150,7 +193,7 @@
         <h2 class="section-title"><i class="fas fa-fire" style="color: var(--secondary);"></i> Ofertas Especiales</h2>
         <div class="offers-grid">
             {% for oferta in ofertas %}
-            <article class="offer-card">
+            <article class="offer-card" data-offer-id="{{ oferta.id }}" {% if oferta.fecha_fin %}data-end-date="{{ oferta.fecha_fin }}"{% endif %}>
                 <div class="offer-badge">
                     {% if oferta.tipo == 'porcentaje' or oferta.tipo == 'descuento' %}
                         -{{ (oferta.valor_descuento or 0)|int }}%
@@ -168,21 +211,27 @@
                     {% else %}
                     <div class="placeholder-svg">
                         <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <!-- Etiqueta de oferta -->
                             <path d="M25 30 L55 30 L75 50 L55 70 L25 70 Z" fill="#ef4444" opacity="0.9"/>
                             <circle cx="35" cy="50" r="5" fill="white" opacity="0.8"/>
-                            <!-- Simbolo % -->
                             <circle cx="58" cy="42" r="6" stroke="white" stroke-width="2.5" fill="none"/>
                             <circle cx="68" cy="58" r="6" stroke="white" stroke-width="2.5" fill="none"/>
                             <line x1="70" y1="38" x2="56" y2="62" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-                            <!-- Destellos -->
                             <path d="M80 25 L82 30 L87 28 L84 33 L89 35 L84 37 L87 42 L82 40 L80 45 L78 40 L73 42 L76 37 L71 35 L76 33 L73 28 L78 30 Z" fill="#fbbf24" opacity="0.8"/>
                         </svg>
                     </div>
                     {% endif %}
                 </div>
-                <h3 class="offer-title">{{ oferta.titulo }}</h3>
-                <p class="offer-desc">{{ oferta.descripcion or '' }}</p>
+                <div class="offer-content">
+                    <h3 class="offer-title">{{ oferta.titulo }}</h3>
+                    <p class="offer-desc">{{ oferta.descripcion or '' }}</p>
+                    {% if oferta.fecha_fin %}
+                    <div class="offer-countdown" data-end="{{ oferta.fecha_fin }}">
+                        <i class="fas fa-clock"></i>
+                        <span>Termina en:</span>
+                        <span class="offer-countdown-time">--:--:--</span>
+                    </div>
+                    {% endif %}
+                </div>
                 {% if oferta.precio_oferta %}
                 <div class="offer-price">
                     {% if oferta.producto_precio %}
@@ -235,7 +284,8 @@
 
     <!-- Botón volver al inicio -->
     <button class="btn-back-home" id="btnBackHome" onclick="showHome()">
-        <i class="fas fa-arrow-left"></i> Volver al inicio
+        <i class="fas fa-home"></i>
+        <span>Volver al inicio</span>
     </button>
 
     <!-- Sección Destacados (visible en inicio) -->
@@ -432,32 +482,35 @@
 <div class="cart-sidebar" id="cartSidebar">
     <div class="cart-header">
         <h3>Tu pedido</h3>
-        <button class="cart-close" onclick="toggleCart()">x</button>
+        <button class="cart-close" onclick="toggleCart()">&times;</button>
     </div>
     <div class="cart-body" id="cartItems">
         <div class="cart-empty">
-            <div class="cart-empty-icon"><i class="fas fa-shopping-cart"></i></div>
-            <p>Tu carrito esta vacio</p>
+            <div class="cart-empty-icon"><i class="fas fa-shopping-bag"></i></div>
+            <p>Tu carrito está vacío</p>
+            <span class="cart-empty-hint">Agrega productos del menú</span>
         </div>
     </div>
     <div class="cart-footer">
         <div class="cart-row">
-            <span>Subtotal</span>
-            <span id="cartSubtotal">$0.00</span>
+            <span><i class="fas fa-receipt" style="margin-right:6px;opacity:0.6;"></i>Subtotal</span>
+            <span id="cartSubtotal">$0</span>
         </div>
         <div class="cart-row">
-            <span>Envio a domicilio</span>
+            <span><i class="fas fa-motorcycle" style="margin-right:6px;opacity:0.6;"></i>Envío a domicilio</span>
             <span id="cartDelivery">${{ "{:,.0f}".format(tienda.costo_domicilio)|replace(",", ".") }}</span>
         </div>
         <div class="cart-total">
-            <span>Total</span>
-            <span id="cartTotal">$0.00</span>
+            <span>Total a pagar</span>
+            <span id="cartTotal">$0</span>
         </div>
-        <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px; text-align: center;">
-            Pedido minimo: ${{ "{:,.0f}".format(tienda.pedido_minimo)|replace(",", ".") }}
-        </p>
-        <button class="btn btn-primary btn-checkout" id="checkoutBtn" onclick="goToCheckout()" disabled>
-            Hacer pedido
+        <div class="cart-min-order">
+            <i class="fas fa-info-circle"></i>
+            Pedido mínimo: ${{ "{:,.0f}".format(tienda.pedido_minimo)|replace(",", ".") }}
+        </div>
+        <button class="btn-checkout" id="checkoutBtn" onclick="goToCheckout()" disabled>
+            <i class="fas fa-paper-plane"></i>
+            Finalizar pedido
         </button>
     </div>
 </div>
@@ -501,9 +554,28 @@
     </div>
 </div>
 
-<!-- Footer -->
-<footer class="footer">
-    <p class="footer-info">© 2025 {{ tienda.nombre }} | {{ tienda.telefono }}</p>
+<!-- Footer Mini -->
+<footer class="footer-mini">
+    <div class="footer-mini-top">
+        <div class="footer-mini-brand">
+            {% if tienda.logo %}
+            <img src="{{ tienda.logo }}" alt="{{ tienda.nombre }}" class="footer-mini-logo">
+            {% endif %}
+            <span class="footer-mini-name">{{ tienda.nombre }}</span>
+        </div>
+        <a href="https://wa.me/{{ tienda.telefono|replace(' ', '')|replace('-', '')|replace('+', '') }}" target="_blank" class="footer-mini-wa">
+            <i class="bi bi-whatsapp"></i>
+        </a>
+    </div>
+    <div class="footer-mini-bottom">
+        <span class="footer-mini-status {{ 'open' if tienda.abierta else 'closed' }}">{{ 'Abierto' if tienda.abierta else 'Cerrado' }}</span>
+        <span class="footer-mini-sep">•</span>
+        <span>{{ tienda.telefono }}</span>
+        <span class="footer-mini-sep">•</span>
+        <span>© 2025</span>
+        <span class="footer-mini-sep">•</span>
+        <span class="footer-mini-vx"><i class="bi bi-heart-fill"></i> VxPlay</span>
+    </div>
 </footer>
 {% endblock %}
 
@@ -562,9 +634,9 @@ function updateCartUI(data) {
     cartCount.textContent = data.total_items;
 
     if (data.carrito.length === 0) {
-        cartItems.innerHTML = '<div class="cart-empty"><div class="cart-empty-icon"><i class="fas fa-shopping-cart"></i></div><p>Tu carrito esta vacio</p></div>';
-        cartSubtotal.textContent = '$0.00';
-        cartTotal.textContent = '$0.00';
+        cartItems.innerHTML = '<div class="cart-empty"><div class="cart-empty-icon"><i class="fas fa-shopping-bag"></i></div><p>Tu carrito está vacío</p><span class="cart-empty-hint">Agrega productos del menú</span></div>';
+        cartSubtotal.textContent = '$0';
+        cartTotal.textContent = '$0';
         checkoutBtn.disabled = true;
         return;
     }
@@ -585,9 +657,16 @@ function updateCartUI(data) {
             precioHTML = `$${Math.floor(item.precio).toLocaleString('es-CO')}`;
         }
 
+        // Imagen del producto (con fallback SVG)
+        const noImageSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23f1f5f9' width='100' height='100'/%3E%3Cpath fill='%23cbd5e1' d='M35 40h30c2.8 0 5 2.2 5 5v20c0 2.8-2.2 5-5 5H35c-2.8 0-5-2.2-5-5V45c0-2.8 2.2-5 5-5zm5 5c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zm-5 20h30l-10-13-5 7-5-4-10 10z'/%3E%3C/svg%3E";
+        const itemImage = item.imagen || noImageSvg;
+
         html += `<div class="cart-item">
+            <div class="cart-item-image">
+                <img src="${itemImage}" alt="${item.nombre}" onerror="this.onerror=null;this.src='${noImageSvg}'">
+            </div>
             <div class="cart-item-info">
-                <div class="cart-item-name">${item.nombre}${isOferta ? ' <span style="color:#ef4444;font-size:11px;">(Oferta)</span>' : ''}</div>
+                <div class="cart-item-name">${item.nombre}${isOferta ? ' <span class="cart-oferta-tag">Oferta</span>' : ''}</div>
                 <div class="cart-item-price">${precioHTML}</div>
             </div>
             <div class="cart-item-controls">
@@ -606,8 +685,13 @@ function updateCartUI(data) {
 
 function addToCart(productoId) {
     const btn = document.getElementById('btn-' + productoId);
-    btn.classList.add('added');
-    btn.innerHTML = '<i class="fas fa-check"></i>';
+    btn.classList.add('added', 'ripple');
+    btn.innerHTML = '<i class="bi bi-check-lg"></i>';
+
+    // Obtener info del producto desde la tarjeta
+    const card = btn.closest('.product-card');
+    const productName = card ? card.querySelector('.product-name')?.textContent : 'Producto';
+    const productImage = card ? card.querySelector('.product-image img')?.src : null;
 
     fetch('/api/carrito/agregar', {
         method: 'POST',
@@ -616,11 +700,31 @@ function addToCart(productoId) {
     })
     .then(r => r.json())
     .then(data => {
-        document.getElementById('cartCount').textContent = data.total_items;
+        const cartCount = document.getElementById('cartCount');
+        cartCount.textContent = data.total_items;
+        cartCount.classList.add('bounce');
+        setTimeout(() => cartCount.classList.remove('bounce'), 400);
+
+        // Shake del botón carrito
+        const cartBtn = document.querySelector('.cart-btn');
+        if (cartBtn) {
+            cartBtn.classList.add('shake');
+            setTimeout(() => cartBtn.classList.remove('shake'), 500);
+        }
+
+        // Mostrar toast mejorado con imagen
+        showToast(productName, false, productImage);
+
         setTimeout(() => {
-            btn.classList.remove('added');
+            btn.classList.remove('added', 'ripple');
             btn.innerHTML = '+';
         }, 1000);
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        showToast('Error al agregar', true);
+        btn.classList.remove('added', 'ripple');
+        btn.innerHTML = '+';
     });
 }
 
@@ -677,9 +781,18 @@ function addToCartConVariante(productoId, nombreConVariante, precio) {
     if (modal) modal.remove();
 
     var btn = document.getElementById('btn-' + productoId);
+    var productImage = null;
+
     if (btn) {
-        btn.classList.add('added');
-        btn.innerHTML = '<i class="fas fa-check"></i>';
+        btn.classList.add('added', 'ripple');
+        btn.innerHTML = '<i class="bi bi-check-lg"></i>';
+
+        // Obtener imagen del producto
+        var card = btn.closest('.product-card');
+        if (card) {
+            var img = card.querySelector('.product-image img');
+            if (img) productImage = img.src;
+        }
     }
 
     fetch('/api/carrito/agregar', {
@@ -694,12 +807,20 @@ function addToCartConVariante(productoId, nombreConVariante, precio) {
     .then(r => r.json())
     .then(data => {
         document.getElementById('cartCount').textContent = data.total_items;
-        showToast('✓ Agregado: ' + nombreConVariante);
+        showToast(nombreConVariante, false, productImage);
         if (btn) {
             setTimeout(function() {
-                btn.classList.remove('added');
+                btn.classList.remove('added', 'ripple');
                 btn.innerHTML = '+';
             }, 1000);
+        }
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        showToast('Error al agregar', true);
+        if (btn) {
+            btn.classList.remove('added', 'ripple');
+            btn.innerHTML = '+';
         }
     });
 }
@@ -877,26 +998,79 @@ function showAddedFeedback(btn) {
     }, 300);
 }
 
-function showToast(message, isError) {
+function showToast(message, isError, productImage) {
     // Remover toast anterior si existe
-    var existingToast = document.getElementById('toast');
-    if(existingToast) existingToast.remove();
-
-    var toast = document.createElement('div');
-    toast.id = 'toast';
-    toast.textContent = message;
-    toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:' + (isError ? '#ef4444' : '#10b981') + ';color:white;padding:12px 24px;border-radius:25px;font-weight:500;z-index:9999;box-shadow:0 4px 15px rgba(0,0,0,0.2);animation:fadeInUp 0.3s ease;';
-    document.body.appendChild(toast);
-
-    // Agregar animación CSS si no existe
-    if(!document.getElementById('toastStyles')) {
-        var style = document.createElement('style');
-        style.id = 'toastStyles';
-        style.textContent = '@keyframes fadeInUp{from{opacity:0;transform:translate(-50%,20px)}to{opacity:1;transform:translate(-50%,0)}}';
-        document.head.appendChild(style);
+    var existingToast = document.getElementById('cartToast');
+    if(existingToast) {
+        existingToast.classList.remove('show');
+        existingToast.classList.add('hide');
+        setTimeout(() => existingToast.remove(), 300);
     }
 
-    setTimeout(function() { toast.remove(); }, 2000);
+    // Crear nuevo toast mejorado
+    var toast = document.createElement('div');
+    toast.id = 'cartToast';
+    toast.className = 'cart-toast';
+
+    // Limpiar mensaje de emojis/símbolos al inicio
+    var cleanMessage = message.replace(/^[✓✗⚠️🔥✨⭐]+\s*/, '').trim();
+
+    // Determinar título según tipo
+    var title = isError ? 'Error' : '¡Agregado!';
+    var iconClass = isError ? 'error' : 'success';
+    var iconHtml = isError ? '<i class="bi bi-x-lg"></i>' : '<i class="bi bi-check-lg"></i>';
+
+    // HTML del toast
+    toast.innerHTML = `
+        <div class="cart-toast-content">
+            <div class="cart-toast-icon ${iconClass}">
+                ${iconHtml}
+            </div>
+            ${productImage ? `<img src="${productImage}" class="cart-toast-image" alt="">` : ''}
+            <div class="cart-toast-text">
+                <div class="cart-toast-title">${title}</div>
+                <div class="cart-toast-message">${cleanMessage}</div>
+            </div>
+        </div>
+        ${!isError ? `
+        <div class="cart-toast-action">
+            <button class="cart-toast-btn" onclick="toggleCart(); document.getElementById('cartToast').remove();">
+                <i class="bi bi-cart3"></i> Ver carrito
+            </button>
+        </div>
+        ` : ''}
+        <div class="cart-toast-progress"></div>
+    `;
+
+    document.body.appendChild(toast);
+
+    // Animar entrada
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+
+    // Animar icono del carrito
+    var cartBtn = document.querySelector('.cart-btn');
+    if (cartBtn && !isError) {
+        cartBtn.classList.add('shake');
+        setTimeout(() => cartBtn.classList.remove('shake'), 500);
+    }
+
+    // Animar badge del carrito
+    var cartBadge = document.querySelector('.cart-badge');
+    if (cartBadge && !isError) {
+        cartBadge.classList.add('bounce');
+        setTimeout(() => cartBadge.classList.remove('bounce'), 400);
+    }
+
+    // Auto cerrar
+    setTimeout(function() {
+        if (document.getElementById('cartToast')) {
+            toast.classList.remove('show');
+            toast.classList.add('hide');
+            setTimeout(() => toast.remove(), 400);
+        }
+    }, 2500);
 }
 
 function updateQty(productoId, cantidad) {
@@ -967,18 +1141,27 @@ function filterCategory(category, element) {
     if (featuredSection) featuredSection.style.display = 'none';
     if (offersSection) offersSection.style.display = 'none';
 
+    // Mostrar filtros de ordenamiento
+    var filtersBar = document.getElementById('filtersBar');
+    if (filtersBar) filtersBar.style.display = 'flex';
+
     // Mostrar botón volver
     var btnBack = document.getElementById('btnBackHome');
-    if (btnBack) btnBack.classList.add('visible');
+    if (btnBack) {
+        btnBack.style.display = 'flex';
+        btnBack.classList.add('visible');
+    }
 
     // Ocultar todas las categorías primero
     document.querySelectorAll('.category-section').forEach(section => {
         section.classList.remove('visible');
+        section.classList.add('hidden');
     });
 
     // Mostrar solo la categoría seleccionada
     const targetSection = document.querySelector('.category-section[data-category="' + category + '"]');
     if (targetSection) {
+        targetSection.classList.remove('hidden');
         targetSection.classList.add('visible');
         smoothScrollTo(targetSection);
     }
@@ -1012,17 +1195,28 @@ function showHome() {
     if (featuredSection) featuredSection.style.display = 'block';
     if (offersSection) offersSection.style.display = 'block';
 
-    // Ocultar botón volver
+    // Ocultar filtros de ordenamiento
+    var filtersBar = document.getElementById('filtersBar');
+    if (filtersBar) filtersBar.style.display = 'none';
+
+    // Ocultar botón volver (ambos métodos por compatibilidad)
     var btnBack = document.getElementById('btnBackHome');
-    if (btnBack) btnBack.classList.remove('visible');
+    if (btnBack) {
+        btnBack.classList.remove('visible');
+        btnBack.style.display = 'none';
+    }
 
     // Ocultar todas las categorías de productos
     document.querySelectorAll('.category-section').forEach(section => {
         section.classList.remove('visible');
+        section.classList.remove('hidden');
+        section.style.display = '';  // Resetear estilo inline
     });
 
-    // Quitar activo de categorías
-    document.querySelectorAll('.category-nav-item').forEach(el => el.classList.remove('active'));
+    // Quitar activo de categorías nav
+    document.querySelectorAll('.category-nav-item').forEach((el, i) => {
+        el.classList.toggle('active', i === 0);
+    });
 
     // Scroll al inicio
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1119,12 +1313,332 @@ function updateActiveCategory() {
     }
 }
 
+// ============ BÚSQUEDA MEJORADA ============
+const SEARCH_HISTORY_KEY = 'vxplay_search_history';
+const MAX_HISTORY_ITEMS = 5;
+let searchTimeout = null;
+let allProductsCache = null;
+
+// Obtener todos los productos para sugerencias
+function getAllProducts() {
+    // Siempre reconstruir el caché para asegurar que tenemos todos los productos
+    allProductsCache = [];
+    let index = 0;
+
+    // Buscar en TODAS las secciones de categoría (incluso las ocultas)
+    document.querySelectorAll('.category-section').forEach(section => {
+        const categoryName = section.querySelector('.category-title')?.textContent || '';
+
+        // Buscar TODOS los product-card, sin importar si están ocultos
+        section.querySelectorAll('.product-card').forEach(card => {
+            const nameEl = card.querySelector('.product-name');
+            const priceEl = card.querySelector('.product-price');
+            const imgEl = card.querySelector('.product-image img');
+
+            if (nameEl) {
+                const name = nameEl.textContent.trim();
+                const price = priceEl ? priceEl.textContent.trim() : '';
+                const img = imgEl ? imgEl.src : '';
+
+                // Asignar un ID único al card para poder encontrarlo después
+                card.setAttribute('data-search-index', index);
+
+                allProductsCache.push({
+                    name,
+                    category: categoryName,
+                    price,
+                    image: img,
+                    searchIndex: index
+                });
+                index++;
+            }
+        });
+    });
+
+    console.log('Productos cargados para búsqueda:', allProductsCache.length);
+    return allProductsCache;
+}
+
+// Manejar input de búsqueda
+function handleSearchInput(query) {
+    const container = document.getElementById('searchContainer');
+    const clearBtn = document.getElementById('searchClear');
+
+    // Toggle clase has-value
+    container.classList.toggle('has-value', query.length > 0);
+    clearBtn.classList.toggle('show', query.length > 0);
+
+    // Debounce para sugerencias
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        updateSearchSuggestions(query);
+        searchProducts(query);
+    }, 150);
+}
+
+// Mostrar dropdown
+function showSearchDropdown() {
+    const dropdown = document.getElementById('searchDropdown');
+    const container = document.getElementById('searchContainer');
+    const input = document.getElementById('searchInput');
+
+    container.classList.add('expanded');
+    dropdown.classList.add('show');
+
+    // Si no hay texto, mostrar historial
+    if (!input.value.trim()) {
+        showSearchHistory();
+    } else {
+        updateSearchSuggestions(input.value);
+    }
+
+    // Cerrar al hacer click fuera
+    document.addEventListener('click', closeSearchDropdownOnClick);
+}
+
+function closeSearchDropdownOnClick(e) {
+    const container = document.getElementById('searchContainer');
+    if (!container.contains(e.target)) {
+        hideSearchDropdown();
+    }
+}
+
+function hideSearchDropdown() {
+    const dropdown = document.getElementById('searchDropdown');
+    const container = document.getElementById('searchContainer');
+
+    dropdown.classList.remove('show');
+    container.classList.remove('expanded');
+    document.removeEventListener('click', closeSearchDropdownOnClick);
+}
+
+// Historial de búsquedas
+function getSearchHistory() {
+    try {
+        return JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY)) || [];
+    } catch {
+        return [];
+    }
+}
+
+function saveSearchHistory(query) {
+    if (!query.trim()) return;
+
+    let history = getSearchHistory();
+    // Remover si ya existe
+    history = history.filter(h => h.toLowerCase() !== query.toLowerCase());
+    // Agregar al inicio
+    history.unshift(query.trim());
+    // Limitar cantidad
+    history = history.slice(0, MAX_HISTORY_ITEMS);
+
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+}
+
+function removeFromHistory(query) {
+    let history = getSearchHistory();
+    history = history.filter(h => h !== query);
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+    showSearchHistory();
+}
+
+function showSearchHistory() {
+    const history = getSearchHistory();
+    const section = document.getElementById('searchHistorySection');
+    const list = document.getElementById('searchHistoryList');
+    const suggestionsSection = document.getElementById('searchSuggestionsSection');
+
+    suggestionsSection.style.display = 'none';
+
+    if (history.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+
+    section.style.display = 'block';
+    list.innerHTML = history.map(h => `
+        <div class="search-history-item" onclick="selectHistoryItem('${h.replace(/'/g, "\\'")}')">
+            <i class="fas fa-history"></i>
+            <span>${h}</span>
+            <button class="search-history-remove" onclick="event.stopPropagation(); removeFromHistory('${h.replace(/'/g, "\\'")}')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function selectHistoryItem(query) {
+    const input = document.getElementById('searchInput');
+    input.value = query;
+    handleSearchInput(query);
+    hideSearchDropdown();
+}
+
+// Normalizar texto para búsqueda (quitar acentos)
+function normalizeText(text) {
+    return text.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+
+// Sugerencias de productos
+function updateSearchSuggestions(query) {
+    const section = document.getElementById('searchSuggestionsSection');
+    const list = document.getElementById('searchSuggestionsList');
+    const historySection = document.getElementById('searchHistorySection');
+
+    if (!query.trim()) {
+        section.style.display = 'none';
+        showSearchHistory();
+        return;
+    }
+
+    historySection.style.display = 'none';
+
+    const products = getAllProducts();
+    const q = normalizeText(query);
+
+    // Buscar coincidencias (normalizado, sin acentos)
+    const matches = products.filter(p => {
+        const normalizedName = normalizeText(p.name);
+        return normalizedName.includes(q);
+    }).slice(0, 6);
+
+    console.log('Búsqueda:', q, '- Encontrados:', matches.length);
+
+    if (matches.length === 0) {
+        section.style.display = 'block';
+        list.innerHTML = `
+            <div class="search-no-results">
+                <i class="fas fa-search"></i>
+                <p>No se encontraron productos con "${query}"</p>
+            </div>
+        `;
+        return;
+    }
+
+    section.style.display = 'block';
+    list.innerHTML = matches.map(p => `
+        <div class="search-suggestion" onclick="selectSuggestion('${p.name.replace(/'/g, "\\'")}', ${p.searchIndex})">
+            <img class="search-suggestion-img" src="${p.image}" alt="${p.name}" onerror="this.style.display='none'">
+            <div class="search-suggestion-info">
+                <div class="search-suggestion-name">${highlightMatch(p.name, query)}</div>
+                <div class="search-suggestion-category">${p.category}</div>
+            </div>
+            <div class="search-suggestion-price">${p.price}</div>
+        </div>
+    `).join('');
+}
+
+function highlightMatch(text, query) {
+    const regex = new RegExp(`(${query})`, 'gi');
+    return text.replace(regex, '<strong style="color:var(--primary)">$1</strong>');
+}
+
+function selectSuggestion(name, searchIndex) {
+    const input = document.getElementById('searchInput');
+    saveSearchHistory(name);
+    hideSearchDropdown();
+
+    console.log('Buscando producto con searchIndex:', searchIndex);
+
+    // Buscar el producto por su índice de búsqueda
+    let card = document.querySelector(`[data-search-index="${searchIndex}"]`);
+
+    // Si no lo encuentra por índice, buscar por nombre del producto
+    if (!card) {
+        console.log('No encontrado por índice, buscando por nombre:', name);
+        document.querySelectorAll('.product-card').forEach(c => {
+            const cardName = c.querySelector('.product-name')?.textContent.trim();
+            if (cardName === name) {
+                card = c;
+            }
+        });
+    }
+
+    console.log('Card encontrado:', card);
+
+    if (card) {
+        // Mostrar la sección del producto
+        const section = card.closest('.category-section');
+        console.log('Sección:', section);
+
+        if (section) {
+            const categoryId = section.getAttribute('data-category');
+            console.log('Category ID:', categoryId);
+
+            // Ocultar sección de destacados
+            const featuredSection = document.getElementById('featuredSection');
+            if (featuredSection) featuredSection.style.display = 'none';
+
+            // Ocultar todas las secciones primero
+            document.querySelectorAll('.category-section').forEach(s => {
+                s.classList.add('hidden');
+            });
+
+            // Mostrar solo la sección del producto encontrado
+            section.classList.remove('hidden');
+            section.classList.add('visible');
+            section.style.display = 'block';
+
+            // Mostrar todos los productos de esa sección
+            section.querySelectorAll('.product-card').forEach(c => {
+                c.style.display = '';
+            });
+
+            // Actualizar categoría activa en navegación
+            document.querySelectorAll('.category-nav-item').forEach(nav => {
+                nav.classList.toggle('active', nav.getAttribute('data-category') === categoryId);
+            });
+
+            // Mostrar botón volver al inicio
+            const btnBackHome = document.getElementById('btnBackHome');
+            if (btnBackHome) btnBackHome.style.display = 'flex';
+        }
+
+        // Hacer scroll al producto
+        setTimeout(() => {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Efecto de resaltado
+            card.style.transform = 'scale(1.05)';
+            card.style.boxShadow = '0 0 0 4px var(--primary), 0 15px 40px rgba(0,0,0,0.25)';
+            card.style.transition = 'all 0.3s ease';
+            card.style.zIndex = '10';
+            card.style.position = 'relative';
+
+            setTimeout(() => {
+                card.style.transform = '';
+                card.style.boxShadow = '';
+                card.style.zIndex = '';
+            }, 2000);
+        }, 300);
+    } else {
+        console.log('ERROR: No se encontró el producto');
+    }
+
+    // Limpiar la búsqueda
+    input.value = '';
+    document.getElementById('searchContainer').classList.remove('has-value');
+    document.getElementById('searchClear').classList.remove('show');
+}
+
 function searchProducts(query) {
     const clearBtn = document.getElementById('searchClear');
+    const container = document.getElementById('searchContainer');
+
     clearBtn.classList.toggle('show', query.length > 0);
+    container.classList.toggle('has-value', query.length > 0);
 
     query = query.toLowerCase().trim();
     let found = false;
+
+    // Guardar en historial si hay búsqueda y presiona Enter
+    if (query && event && event.type === 'keyup' && event.key === 'Enter') {
+        saveSearchHistory(query);
+        hideSearchDropdown();
+    }
 
     document.querySelectorAll('.category-section').forEach(section => {
         let sectionFound = false;
@@ -1152,8 +1666,91 @@ function searchProducts(query) {
 }
 
 function clearSearch() {
-    document.getElementById('searchInput').value = '';
+    const input = document.getElementById('searchInput');
+    const container = document.getElementById('searchContainer');
+
+    input.value = '';
+    container.classList.remove('has-value');
     searchProducts('');
+    hideSearchDropdown();
+    input.focus();
+}
+
+// ============ OFERTAS - COUNTDOWN Y ANIMACIONES ============
+function initOfferCountdowns() {
+    const countdowns = document.querySelectorAll('.offer-countdown');
+
+    countdowns.forEach(countdown => {
+        const endDate = countdown.getAttribute('data-end');
+        if (endDate) {
+            updateCountdown(countdown, new Date(endDate));
+        }
+    });
+
+    // Actualizar cada segundo
+    setInterval(() => {
+        countdowns.forEach(countdown => {
+            const endDate = countdown.getAttribute('data-end');
+            if (endDate) {
+                updateCountdown(countdown, new Date(endDate));
+            }
+        });
+    }, 1000);
+}
+
+function updateCountdown(element, endDate) {
+    const now = new Date();
+    const diff = endDate - now;
+    const timeDisplay = element.querySelector('.offer-countdown-time');
+
+    if (diff <= 0) {
+        timeDisplay.textContent = '¡Terminó!';
+        element.style.background = 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)';
+        element.style.color = '#dc2626';
+        return;
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+    if (days > 0) {
+        timeDisplay.textContent = `${days}d ${hours}h ${mins}m`;
+    } else {
+        timeDisplay.textContent = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    // Si queda menos de 1 hora, cambiar estilo a urgente
+    if (diff < 3600000) {
+        element.style.background = 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)';
+        element.style.color = '#dc2626';
+        element.querySelector('i').style.color = '#dc2626';
+    }
+}
+
+// Animación shake periódica para las ofertas
+function initOfferShake() {
+    const offerCards = document.querySelectorAll('.offer-card');
+
+    // Shake aleatorio cada 5-10 segundos
+    setInterval(() => {
+        const randomCard = offerCards[Math.floor(Math.random() * offerCards.length)];
+        if (randomCard && isElementInViewport(randomCard)) {
+            randomCard.classList.add('shake');
+            setTimeout(() => randomCard.classList.remove('shake'), 600);
+        }
+    }, 7000);
+}
+
+function isElementInViewport(el) {
+    const rect = el.getBoundingClientRect();
+    return (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
 }
 
 // ============ PRODUCT FILTERS ============
@@ -1231,38 +1828,104 @@ function trackOrder() {
     const telefono = document.getElementById("trackInput").value.trim();
     if (!telefono) return;
 
-    fetch('/api/pedido/rastrear-telefono/' + encodeURIComponent(telefono))
-        .then(r => r.json())
-        .then(data => {
-            const pedidosList = document.getElementById('pedidosList');
+    const pedidosList = document.getElementById('pedidosList');
+    const trackingResult = document.getElementById('trackingResult');
 
+    // Mostrar estado de carga
+    pedidosList.innerHTML = '<div class="no-pedidos"><i class="fas fa-spinner fa-spin"></i><p>Buscando pedidos...</p></div>';
+    trackingResult.classList.add('show');
+
+    fetch('/api/pedido/rastrear-telefono/' + encodeURIComponent(telefono))
+        .then(r => {
+            if (!r.ok) {
+                return r.json().catch(() => ({ error: 'Error al buscar pedidos' }));
+            }
+            return r.json();
+        })
+        .then(data => {
             if (data.error || !data.encontrado) {
-                pedidosList.innerHTML = '<div class="no-pedidos"><i class="fas fa-inbox"></i><p>' + (data.error || 'No tienes pedidos activos') + '</p></div>';
-                document.getElementById('trackingResult').classList.add('show');
+                pedidosList.innerHTML = '<div class="no-pedidos"><i class="fas fa-inbox"></i><p>' + (data.error || 'No tienes pedidos activos hoy') + '</p></div>';
                 return;
             }
 
             // Mostrar lista de pedidos
             let html = '';
             data.pedidos.forEach(pedido => {
+                const estadoClass = pedido.estado.toLowerCase().replace(/\s+/g, '-');
+                const estadoIcono = {
+                    'pendiente': 'fa-clock',
+                    'confirmado': 'fa-check',
+                    'preparando': 'fa-fire',
+                    'listo': 'fa-bell',
+                    'en-camino': 'fa-motorcycle',
+                    'entregado': 'fa-check-circle'
+                }[estadoClass] || 'fa-receipt';
+
                 html += '<div class="pedido-card">';
                 html += '<div class="pedido-header">';
-                html += '<span class="pedido-numero">#' + pedido.numero_orden + '</span>';
-                html += '<span class="pedido-estado ' + pedido.estado + '">' + pedido.estado + '</span>';
+                html += '<span class="pedido-numero"><i class="fas fa-receipt"></i> #' + pedido.numero_orden + '</span>';
+                html += '<span class="pedido-estado ' + estadoClass + '"><i class="fas ' + estadoIcono + '"></i> ' + pedido.estado + '</span>';
                 html += '</div>';
                 html += '<div class="pedido-info">';
-                html += '<span>' + pedido.fecha + '</span>';
+                html += '<span><i class="fas fa-clock"></i> ' + pedido.fecha + '</span>';
                 html += '<span class="pedido-total">$' + Math.floor(pedido.total).toLocaleString('es-CO') + '</span>';
                 html += '</div>';
                 html += '</div>';
             });
 
             pedidosList.innerHTML = html;
-            document.getElementById('trackingResult').classList.add('show');
         })
         .catch(() => {
-            alert('No se pudo rastrear el pedido');
+            pedidosList.innerHTML = '<div class="no-pedidos"><i class="fas fa-exclamation-triangle"></i><p>No se pudo conectar con el servidor</p></div>';
         });
+}
+
+// ============ HERO PARALLAX EFFECT ============
+function initHeroParallax() {
+    const hero = document.querySelector('.hero.hero-with-banner');
+    if (!hero) return;
+
+    // Solo activar parallax en desktop
+    if (window.innerWidth <= 768) return;
+
+    let ticking = false;
+
+    window.addEventListener('scroll', function() {
+        if (!ticking) {
+            window.requestAnimationFrame(function() {
+                const scrolled = window.pageYOffset;
+                const heroRect = hero.getBoundingClientRect();
+
+                // Solo aplicar efecto si el hero es visible
+                if (heroRect.bottom > 0 && heroRect.top < window.innerHeight) {
+                    const speed = 0.4;
+                    const yPos = -(scrolled * speed);
+                    hero.style.backgroundPosition = `center ${yPos}px`;
+                }
+
+                ticking = false;
+            });
+
+            ticking = true;
+        }
+    });
+
+    // Efecto de zoom suave al pasar el mouse
+    hero.addEventListener('mousemove', function(e) {
+        const rect = hero.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+
+        // Mover ligeramente el fondo según posición del mouse
+        const moveX = (x - 0.5) * 10;
+        const moveY = (y - 0.5) * 10;
+
+        hero.style.backgroundPosition = `calc(50% + ${moveX}px) calc(50% + ${moveY}px)`;
+    });
+
+    hero.addEventListener('mouseleave', function() {
+        hero.style.backgroundPosition = 'center center';
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1273,7 +1936,12 @@ document.addEventListener('DOMContentLoaded', function() {
         hideSkeletons();
         initScrollSpy(); // Inicializar scroll spy
         initFilters(); // Inicializar filtros después de mostrar contenido
+        initOfferCountdowns(); // Inicializar countdowns de ofertas
+        initOfferShake(); // Inicializar animación shake
     }, 800);
+
+    // Inicializar efecto parallax en el hero
+    initHeroParallax();
 
     // Inicializar carrusel de ofertas
     initOffersCarousel();
@@ -1363,7 +2031,56 @@ function hideSkeletons() {
 // También ocultar cuando todas las imágenes carguen
 window.addEventListener('load', function() {
     hideSkeletons();
+    initCategoryNavScroll();
 });
+
+// ============ CATEGORY NAV SCROLL ============
+function initCategoryNavScroll() {
+    const wrapper = document.getElementById('categoryNavWrapper');
+    const nav = document.getElementById('categoryNav');
+
+    if (!wrapper || !nav) return;
+
+    // Verificar scroll y actualizar clases
+    function updateScrollIndicators() {
+        const scrollLeft = nav.scrollLeft;
+        const maxScroll = nav.scrollWidth - nav.clientWidth;
+
+        // Mostrar/ocultar flechas y gradientes
+        wrapper.classList.toggle('show-left', scrollLeft > 10);
+        wrapper.classList.toggle('show-right', scrollLeft < maxScroll - 10);
+    }
+
+    // Evento de scroll
+    nav.addEventListener('scroll', updateScrollIndicators, { passive: true });
+
+    // Verificar al cargar y al redimensionar
+    updateScrollIndicators();
+    window.addEventListener('resize', updateScrollIndicators);
+
+    // Verificar después de que carguen las imágenes
+    setTimeout(updateScrollIndicators, 500);
+}
+
+function scrollCategories(direction) {
+    const nav = document.getElementById('categoryNav');
+    if (!nav) return;
+
+    const scrollAmount = 200; // Píxeles a desplazar
+    const currentScroll = nav.scrollLeft;
+
+    if (direction === 'left') {
+        nav.scrollTo({
+            left: currentScroll - scrollAmount,
+            behavior: 'smooth'
+        });
+    } else {
+        nav.scrollTo({
+            left: currentScroll + scrollAmount,
+            behavior: 'smooth'
+        });
+    }
+}
 
 // ============ PUSH NOTIFICATIONS ============
 const OrderNotifications = {

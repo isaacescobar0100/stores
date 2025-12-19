@@ -7,6 +7,17 @@ from tkinter import messagebox
 import threading
 from datetime import datetime
 import pytz
+import os
+import re
+import tempfile
+
+# Para generar QR
+try:
+    import qrcode
+    from PIL import Image
+    HAS_QRCODE = True
+except ImportError:
+    HAS_QRCODE = False
 
 # Configuración de CustomTkinter
 ctk.set_appearance_mode("dark")
@@ -61,6 +72,11 @@ class CajaApp:
         self.api = api
         self.running = True
 
+        # Variables de filtro y búsqueda
+        self.filtro_activo = "todos"  # todos, efectivo, transferencia
+        self.busqueda_texto = ""
+        self.pedidos_cache = []  # Cache de pedidos para filtrar
+
         # Configurar ventana
         self.parent.title("Panel de Caja")
         self.parent.geometry("1000x700")
@@ -74,9 +90,6 @@ class CajaApp:
 
         self._crear_widgets()
         self._cargar_pedidos()
-
-        # Auto-refresh cada 10 segundos
-        self._auto_refresh()
 
     def _crear_widgets(self):
         """Crear interfaz"""
@@ -154,6 +167,77 @@ class CajaApp:
         )
         self.pedidos_count_label.pack(side='right')
 
+        # Barra de búsqueda y filtros
+        search_filter_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
+        search_filter_frame.pack(fill='x', padx=20, pady=(0, 12))
+
+        # Campo de búsqueda
+        search_frame = ctk.CTkFrame(search_filter_frame, fg_color="transparent")
+        search_frame.pack(side='left', fill='x', expand=True)
+
+        self.search_entry = ctk.CTkEntry(
+            search_frame,
+            placeholder_text="🔍 Buscar por # orden...",
+            font=ctk.CTkFont(size=13),
+            fg_color=Theme.BG_INPUT,
+            border_color=Theme.BG_ELEVATED,
+            text_color=Theme.TEXT_PRIMARY,
+            height=36,
+            corner_radius=8,
+            width=180
+        )
+        self.search_entry.pack(side='left')
+        self.search_entry.bind('<KeyRelease>', self._on_search)
+
+        # Botones de filtro
+        filter_frame = ctk.CTkFrame(search_filter_frame, fg_color="transparent")
+        filter_frame.pack(side='right')
+
+        # Filtro: Todos
+        self.btn_filtro_todos = ctk.CTkButton(
+            filter_frame,
+            text="Todos",
+            font=ctk.CTkFont(size=12),
+            fg_color=Theme.ACCENT,
+            hover_color=Theme.WARNING,
+            text_color="white",
+            height=32,
+            width=70,
+            corner_radius=6,
+            command=lambda: self._set_filtro("todos")
+        )
+        self.btn_filtro_todos.pack(side='left', padx=(0, 6))
+
+        # Filtro: Efectivo
+        self.btn_filtro_efectivo = ctk.CTkButton(
+            filter_frame,
+            text="💵 Efectivo",
+            font=ctk.CTkFont(size=12),
+            fg_color=Theme.BG_ELEVATED,
+            hover_color=Theme.BG_INPUT,
+            text_color=Theme.TEXT_SECONDARY,
+            height=32,
+            width=90,
+            corner_radius=6,
+            command=lambda: self._set_filtro("efectivo")
+        )
+        self.btn_filtro_efectivo.pack(side='left', padx=(0, 6))
+
+        # Filtro: Transferencia
+        self.btn_filtro_transferencia = ctk.CTkButton(
+            filter_frame,
+            text="💳 Transfer",
+            font=ctk.CTkFont(size=12),
+            fg_color=Theme.BG_ELEVATED,
+            hover_color=Theme.BG_INPUT,
+            text_color=Theme.TEXT_SECONDARY,
+            height=32,
+            width=90,
+            corner_radius=6,
+            command=lambda: self._set_filtro("transferencia")
+        )
+        self.btn_filtro_transferencia.pack(side='left')
+
         # Lista de pedidos
         self.pedidos_scroll = ctk.CTkScrollableFrame(left_frame, fg_color="transparent")
         self.pedidos_scroll.pack(fill='both', expand=True, padx=12, pady=(0, 12))
@@ -206,6 +290,63 @@ class CajaApp:
         # Guardar referencia
         setattr(self, f"stat_{key}", value_label)
 
+    def _on_search(self, event=None):
+        """Manejar búsqueda en tiempo real"""
+        self.busqueda_texto = self.search_entry.get().strip()
+        self._aplicar_filtros()
+
+    def _set_filtro(self, filtro):
+        """Cambiar filtro activo"""
+        self.filtro_activo = filtro
+
+        # Actualizar estilo de botones
+        # Reset todos los botones
+        self.btn_filtro_todos.configure(
+            fg_color=Theme.BG_ELEVATED,
+            text_color=Theme.TEXT_SECONDARY
+        )
+        self.btn_filtro_efectivo.configure(
+            fg_color=Theme.BG_ELEVATED,
+            text_color=Theme.TEXT_SECONDARY
+        )
+        self.btn_filtro_transferencia.configure(
+            fg_color=Theme.BG_ELEVATED,
+            text_color=Theme.TEXT_SECONDARY
+        )
+
+        # Resaltar botón activo
+        if filtro == "todos":
+            self.btn_filtro_todos.configure(fg_color=Theme.ACCENT, text_color="white")
+        elif filtro == "efectivo":
+            self.btn_filtro_efectivo.configure(fg_color=Theme.SUCCESS, text_color="white")
+        elif filtro == "transferencia":
+            self.btn_filtro_transferencia.configure(fg_color="#3b82f6", text_color="white")
+
+        self._aplicar_filtros()
+
+    def _aplicar_filtros(self):
+        """Aplicar filtros y búsqueda a los pedidos en cache"""
+        pedidos_filtrados = []
+
+        for p in self.pedidos_cache:
+            metodo = p.get('metodo_pago', 'efectivo')
+            numero_orden = str(p.get('numero_orden', p.get('id', '')))
+
+            # Filtrar por tipo de pago
+            if self.filtro_activo == "efectivo" and metodo == 'wompi':
+                continue
+            if self.filtro_activo == "transferencia" and metodo != 'wompi':
+                continue
+
+            # Filtrar por búsqueda
+            if self.busqueda_texto:
+                if self.busqueda_texto.lower() not in numero_orden.lower():
+                    continue
+
+            pedidos_filtrados.append(p)
+
+        self._mostrar_pedidos(pedidos_filtrados)
+
     def _cargar_pedidos(self):
         """Cargar pedidos pendientes de pago"""
         def load():
@@ -233,12 +374,15 @@ class CajaApp:
                             else:
                                 total_efectivo += total
 
-                        # Pedidos pendientes de pago (efectivo no entregado)
-                        if metodo != 'wompi' and estado not in ('entregado', 'cancelado'):
+                        # Pedidos pendientes de pago (no entregados ni cancelados)
+                        if estado not in ('entregado', 'cancelado'):
                             pedidos_pendientes.append(p)
                             total_pendientes += total
 
-                self.parent.after(0, lambda: self._mostrar_pedidos(pedidos_pendientes))
+                # Guardar en cache para filtros
+                self.pedidos_cache = pedidos_pendientes
+
+                self.parent.after(0, self._aplicar_filtros)
                 self.parent.after(0, lambda: self._actualizar_stats(
                     total_ventas, total_efectivo, total_transferencia, total_pendientes
                 ))
@@ -302,10 +446,30 @@ class CajaApp:
             text_color=Theme.TEXT_SECONDARY
         ).pack(side='left', padx=(12, 0))
 
+        # Badge de método de pago
+        metodo = pedido.get('metodo_pago', 'efectivo')
+        if metodo == 'wompi':
+            metodo_text = "💳 TRANSFER"
+            metodo_color = "#3b82f6"
+        else:
+            metodo_text = "💵 EFECTIVO"
+            metodo_color = Theme.SUCCESS
+
+        ctk.CTkLabel(
+            top_row,
+            text=metodo_text,
+            font=ctk.CTkFont(size=9, weight="bold"),
+            fg_color=metodo_color,
+            text_color="white",
+            corner_radius=4,
+            padx=6,
+            pady=2
+        ).pack(side='right', padx=(6, 0))
+
         # Tipo de pedido
         tipo = pedido.get('tipo', 'local')
         tipo_colors = {
-            'local': '#3b82f6',
+            'local': '#6b7280',
             'domicilio': '#8b5cf6',
             'para_llevar': '#06b6d4'
         }
@@ -336,17 +500,17 @@ class CajaApp:
         buttons_frame = ctk.CTkFrame(bottom_row, fg_color="transparent")
         buttons_frame.pack(side='right')
 
-        # Botón Link Wompi
+        # Botón QR Pago (imprimir comanda con QR)
         ctk.CTkButton(
             buttons_frame,
-            text="📱 Link Pago",
+            text="🖨️ QR Pago",
             font=ctk.CTkFont(size=12),
             fg_color="#3b82f6",
             hover_color="#2563eb",
             text_color="white",
             height=32,
             corner_radius=6,
-            command=lambda p=pedido: self._generar_link_pago(p)
+            command=lambda p=pedido: self._generar_qr_pago(p)
         ).pack(side='left', padx=(0, 8))
 
         # Botón Cobrar Efectivo
@@ -362,16 +526,35 @@ class CajaApp:
             command=lambda p=pedido: self._cobrar_efectivo(p)
         ).pack(side='left')
 
-    def _generar_link_pago(self, pedido):
-        """Generar link de pago Wompi"""
+    def _limpiar_texto(self, texto):
+        """Limpiar texto para impresión térmica"""
+        if not texto:
+            return ''
+        # Remover emojis
+        texto = re.sub(r'[\U0001F600-\U0001F64F]', '', texto)
+        texto = re.sub(r'[\U0001F300-\U0001F5FF]', '', texto)
+        texto = re.sub(r'[\U0001F680-\U0001F6FF]', '', texto)
+        texto = re.sub(r'[\U0001F900-\U0001F9FF]', '', texto)
+        texto = re.sub(r'[\U00002600-\U000026FF]', '', texto)
+        texto = re.sub(r'[\U00002700-\U000027BF]', '', texto)
+        # Reemplazar acentos
+        reemplazos = {'á':'a','é':'e','í':'i','ó':'o','ú':'u',
+                     'Á':'A','É':'E','Í':'I','Ó':'O','Ú':'U',
+                     'ñ':'n','Ñ':'N','ü':'u','Ü':'U'}
+        for orig, remp in reemplazos.items():
+            texto = texto.replace(orig, remp)
+        return texto.strip()
+
+    def _generar_qr_pago(self, pedido):
+        """Generar QR de pago e imprimir comanda"""
         pedido_id = pedido.get('id')
         total = float(pedido.get('total', 0) or 0)
         numero_orden = pedido.get('numero_orden', pedido_id)
 
-        # Mostrar diálogo de confirmación con QR placeholder
+        # Mostrar diálogo de progreso
         dialog = ctk.CTkToplevel(self.parent)
-        dialog.title(f"Link de Pago - Pedido #{numero_orden}")
-        dialog.geometry("400x450")
+        dialog.title(f"QR de Pago - Pedido #{numero_orden}")
+        dialog.geometry("400x300")
         dialog.configure(fg_color=Theme.BG_PRIMARY)
         dialog.transient(self.parent)
         dialog.grab_set()
@@ -379,7 +562,7 @@ class CajaApp:
         # Centrar
         dialog.update_idletasks()
         x = (dialog.winfo_screenwidth() - 400) // 2
-        y = (dialog.winfo_screenheight() - 450) // 2
+        y = (dialog.winfo_screenheight() - 300) // 2
         dialog.geometry(f"+{x}+{y}")
 
         container = ctk.CTkFrame(dialog, fg_color="transparent")
@@ -413,96 +596,227 @@ class CajaApp:
         progress.pack(pady=10)
         progress.set(0)
 
-        # Generar link
-        def generar():
+        def generar_e_imprimir():
             try:
-                # Llamar al API para generar link
+                # 1. Generar link de pago
+                self.parent.after(0, lambda: status_label.configure(text="Generando link de pago..."))
                 result = self.api.generar_link_pago(pedido_id)
 
-                if result and result.get('success'):
-                    link = result.get('link', '')
-                    self.parent.after(0, lambda: self._mostrar_link(dialog, container, status_label, progress, link, numero_orden, total))
-                else:
+                if not result or not result.get('success'):
                     error = result.get('error', 'Error desconocido') if result else 'Error de conexión'
                     self.parent.after(0, lambda: status_label.configure(text=f"Error: {error}", text_color=Theme.ERROR))
-            except Exception as e:
-                self.parent.after(0, lambda: status_label.configure(text=f"Error: {e}", text_color=Theme.ERROR))
+                    return
 
-        # Simular progreso mientras genera
+                link = result.get('link', '')
+                self.parent.after(0, lambda: progress.set(0.3))
+                self.parent.after(0, lambda: status_label.configure(text="Generando código QR..."))
+
+                # 2. Generar imagen QR
+                qr_path = self._generar_imagen_qr(link, numero_orden)
+                if not qr_path:
+                    self.parent.after(0, lambda: status_label.configure(
+                        text="Error: No se pudo generar QR", text_color=Theme.ERROR))
+                    return
+
+                self.parent.after(0, lambda: progress.set(0.6))
+                self.parent.after(0, lambda: status_label.configure(text="Imprimiendo comanda..."))
+
+                # 3. Imprimir comanda con QR
+                self._imprimir_comanda_qr(pedido, link, qr_path)
+
+                self.parent.after(0, lambda: progress.set(1.0))
+                self.parent.after(0, lambda: status_label.configure(
+                    text="¡Comanda impresa!", text_color=Theme.SUCCESS))
+
+                # Cerrar diálogo después de 1.5 segundos
+                self.parent.after(1500, dialog.destroy)
+
+            except Exception as e:
+                self.parent.after(0, lambda: status_label.configure(
+                    text=f"Error: {e}", text_color=Theme.ERROR))
+
+        # Simular progreso inicial
         def update_progress(val):
-            if val < 1:
+            if val < 0.2:
                 progress.set(val)
-                self.parent.after(100, lambda: update_progress(val + 0.1))
+                self.parent.after(50, lambda: update_progress(val + 0.02))
 
         update_progress(0)
-        threading.Thread(target=generar, daemon=True).start()
+        threading.Thread(target=generar_e_imprimir, daemon=True).start()
 
-    def _mostrar_link(self, dialog, container, status_label, progress, link, numero_orden, total):
-        """Mostrar el link generado"""
-        progress.pack_forget()
-        status_label.configure(text="¡Link generado!", text_color=Theme.SUCCESS)
+    def _generar_imagen_qr(self, link, numero_orden):
+        """Generar imagen QR para el link de pago"""
+        if not HAS_QRCODE:
+            # Si no tiene qrcode, no podemos generar
+            return None
 
-        # Frame para el link
-        link_frame = ctk.CTkFrame(container, fg_color=Theme.BG_CARD, corner_radius=8)
-        link_frame.pack(fill='x', pady=16)
+        try:
+            # Crear QR
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_M,
+                box_size=6,
+                border=2,
+            )
+            qr.add_data(link)
+            qr.make(fit=True)
 
-        link_content = ctk.CTkFrame(link_frame, fg_color="transparent")
-        link_content.pack(fill='x', padx=16, pady=12)
+            # Crear imagen
+            img = qr.make_image(fill_color="black", back_color="white")
 
-        ctk.CTkLabel(
-            link_content,
-            text="Link de pago:",
-            font=ctk.CTkFont(size=12),
-            text_color=Theme.TEXT_MUTED
-        ).pack(anchor='w')
+            # Guardar en archivo temporal
+            carpeta = "C:\\fast_comandas\\"
+            if not os.path.exists(carpeta):
+                os.makedirs(carpeta, exist_ok=True)
 
-        # Mostrar link truncado
-        link_display = link[:50] + "..." if len(link) > 50 else link
-        link_label = ctk.CTkLabel(
-            link_content,
-            text=link_display,
-            font=ctk.CTkFont(size=11),
-            text_color=Theme.ACCENT
-        )
-        link_label.pack(anchor='w', pady=(4, 0))
+            qr_path = os.path.join(carpeta, f"qr_pago_{numero_orden}.png")
+            img.save(qr_path)
 
-        # Botón copiar
-        def copiar_link():
-            self.parent.clipboard_clear()
-            self.parent.clipboard_append(link)
-            messagebox.showinfo("Copiado", "Link copiado al portapapeles")
+            return qr_path
+        except Exception as e:
+            print(f"Error generando QR: {e}")
+            return None
 
-        ctk.CTkButton(
-            container,
-            text="📋 Copiar Link",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color=Theme.ACCENT,
-            hover_color="#d97706",
-            text_color="white",
-            height=40,
-            corner_radius=8,
-            command=copiar_link
-        ).pack(fill='x', pady=(8, 8))
+    def _generar_qr_escpos(self, link):
+        """Generar comandos ESC/POS nativos para QR Code"""
+        # Comando QR nativo ESC/POS (funciona en la mayoría de impresoras térmicas modernas)
+        # GS ( k - QR Code commands
 
-        ctk.CTkLabel(
-            container,
-            text="Envía este link al cliente para que pague\ncon su celular",
-            font=ctk.CTkFont(size=12),
-            text_color=Theme.TEXT_MUTED,
-            justify='center'
-        ).pack(pady=(8, 16))
+        data = link.encode('utf-8')
+        data_len = len(data) + 3
 
-        ctk.CTkButton(
-            container,
-            text="Cerrar",
-            font=ctk.CTkFont(size=13),
-            fg_color=Theme.BG_ELEVATED,
-            hover_color=Theme.BG_INPUT,
-            text_color=Theme.TEXT_SECONDARY,
-            height=36,
-            corner_radius=6,
-            command=dialog.destroy
-        ).pack()
+        qr_commands = bytearray()
+
+        # 1. Seleccionar modelo QR (Model 2)
+        # GS ( k pL pH cn fn n
+        qr_commands.extend([0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00])
+
+        # 2. Configurar tamaño del módulo (tamaño 6 - mediano/grande)
+        # GS ( k pL pH cn fn n
+        qr_commands.extend([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x06])
+
+        # 3. Configurar nivel de corrección de errores (M = 49)
+        # GS ( k pL pH cn fn n
+        qr_commands.extend([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x31])
+
+        # 4. Almacenar datos del QR
+        # GS ( k pL pH cn fn m d1...dk
+        pL = (data_len) % 256
+        pH = (data_len) // 256
+        qr_commands.extend([0x1D, 0x28, 0x6B, pL, pH, 0x31, 0x50, 0x30])
+        qr_commands.extend(data)
+
+        # 5. Imprimir QR almacenado
+        # GS ( k pL pH cn fn m
+        qr_commands.extend([0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30])
+
+        return bytes(qr_commands)
+
+    def _imprimir_comanda_qr(self, pedido, link, qr_path):
+        """Imprimir comanda con QR de pago"""
+        try:
+            tienda_nombre = self.api.tienda.get('nombre', 'Restaurante')
+            pedido_id = pedido.get('numero_orden') or pedido.get('id')
+            fecha = datetime.now().strftime('%d/%m/%Y')
+            hora = datetime.now().strftime('%H:%M')
+            total = float(pedido.get('total', 0) or 0)
+            cliente = pedido.get('cliente_nombre') or 'Cliente'
+
+            # Comandos ESC/POS
+            ESC = chr(27)
+            GS = chr(29)
+            LF = chr(10)
+            INIT = ESC + "@"
+            CENTER = ESC + "a" + chr(1)
+            LEFT = ESC + "a" + chr(0)
+            BOLD_ON = ESC + "E" + chr(1)
+            BOLD_OFF = ESC + "E" + chr(0)
+            DOUBLE = GS + "!" + chr(17)
+            NORMAL = GS + "!" + chr(0)
+            CUT = GS + "V" + chr(66) + chr(3)
+
+            # Construir ticket completo
+            texto = ""
+            texto += INIT
+            texto += CENTER
+            texto += BOLD_ON + DOUBLE
+            texto += self._limpiar_texto(tienda_nombre.upper()) + LF
+            texto += NORMAL + BOLD_OFF
+            texto += LF
+            texto += "================================" + LF
+            texto += BOLD_ON + DOUBLE
+            texto += "PAGAR CON QR" + LF
+            texto += NORMAL + BOLD_OFF
+            texto += "================================" + LF
+            texto += LF
+            texto += f"Pedido: #{pedido_id}" + LF
+            texto += f"Fecha: {fecha}  Hora: {hora}" + LF
+            texto += f"Cliente: {self._limpiar_texto(cliente)}" + LF
+            texto += LF
+            texto += "--------------------------------" + LF
+            texto += BOLD_ON + DOUBLE
+            texto += f"TOTAL: ${total:,.0f}" + LF
+            texto += NORMAL + BOLD_OFF
+            texto += "--------------------------------" + LF
+            texto += LF
+            texto += "Escanea el codigo QR" + LF
+            texto += "para pagar:" + LF
+            texto += LF
+
+            # Texto después del QR
+            texto_final = ""
+            texto_final += LF + LF
+            texto_final += CENTER
+            texto_final += "--------------------------------" + LF
+            texto_final += "Pago seguro con Wompi" + LF
+            texto_final += "================================" + LF
+            texto_final += LF + LF + LF
+            texto_final += CUT
+
+            # Imprimir todo junto
+            try:
+                import win32print
+                printer_name = win32print.GetDefaultPrinter()
+
+                # Generar comando QR nativo ESC/POS
+                qr_cmd = self._generar_qr_escpos(link)
+                center_cmd = bytes([0x1B, 0x61, 0x01])  # Centrar
+
+                hPrinter = win32print.OpenPrinter(printer_name)
+                try:
+                    hJob = win32print.StartDocPrinter(hPrinter, 1, (f"PagoQR_{pedido_id}", None, "RAW"))
+                    try:
+                        win32print.StartPagePrinter(hPrinter)
+                        # Texto inicial
+                        win32print.WritePrinter(hPrinter, texto.encode('latin-1', errors='replace'))
+                        # Centrar y QR
+                        win32print.WritePrinter(hPrinter, center_cmd)
+                        win32print.WritePrinter(hPrinter, qr_cmd)
+                        # Texto final
+                        win32print.WritePrinter(hPrinter, texto_final.encode('latin-1', errors='replace'))
+                        win32print.EndPagePrinter(hPrinter)
+                    finally:
+                        win32print.EndDocPrinter(hPrinter)
+                finally:
+                    win32print.ClosePrinter(hPrinter)
+
+            except Exception as e:
+                print(f"Error imprimiendo: {e}")
+                # Fallback: guardar en archivo
+                pass
+
+            # Guardar también en archivo (para debug)
+            carpeta = "C:\\fast_comandas\\"
+            if not os.path.exists(carpeta):
+                os.makedirs(carpeta, exist_ok=True)
+            archivo = os.path.join(carpeta, f"pago_{pedido_id}.txt")
+            with open(archivo, 'w', encoding='latin-1', errors='replace') as f:
+                f.write(texto)
+                f.write(f"\n[QR LINK: {link}]\n")
+                f.write(texto_final)
+
+        except Exception as e:
+            print(f"Error imprimiendo comanda: {e}")
 
     def _cobrar_efectivo(self, pedido):
         """Marcar pedido como pagado en efectivo"""
@@ -532,8 +846,6 @@ class CajaApp:
 
             threading.Thread(target=cobrar, daemon=True).start()
 
-    def _auto_refresh(self):
-        """Auto-refresh cada 10 segundos"""
-        if self.running:
-            self._cargar_pedidos()
-            self.parent.after(10000, self._auto_refresh)
+    def stop(self):
+        """Detener la aplicación"""
+        self.running = False

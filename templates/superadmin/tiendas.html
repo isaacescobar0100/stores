@@ -979,14 +979,22 @@ function mostrarCredenciales(creds) {
         '<div style="display: flex; justify-content: space-between;">' +
         '<span style="color: var(--gray);">Password:</span>' +
         '<strong style="font-family: monospace; color: var(--primary);">' + creds.cocina.password + '</strong></div></div>' +
-        '<div style="background: var(--light); border-radius: 12px; padding: 20px; text-align: left;">' +
+        '<div style="background: var(--light); border-radius: 12px; padding: 20px; text-align: left; margin-bottom: 15px;">' +
         '<h4 style="margin-bottom: 15px; color: var(--warning);"><i class="fas fa-clipboard-list"></i> Usuario Mesero</h4>' +
         '<div style="display: flex; justify-content: space-between; margin-bottom: 8px;">' +
         '<span style="color: var(--gray);">Email:</span>' +
         '<strong style="font-family: monospace;">' + creds.mesero.email + '</strong></div>' +
         '<div style="display: flex; justify-content: space-between;">' +
         '<span style="color: var(--gray);">Password:</span>' +
-        '<strong style="font-family: monospace; color: var(--primary);">' + creds.mesero.password + '</strong></div></div></div>';
+        '<strong style="font-family: monospace; color: var(--primary);">' + creds.mesero.password + '</strong></div></div>' +
+        '<div style="background: var(--light); border-radius: 12px; padding: 20px; text-align: left;">' +
+        '<h4 style="margin-bottom: 15px; color: #8b5cf6;"><i class="fas fa-cash-register"></i> Usuario Caja</h4>' +
+        '<div style="display: flex; justify-content: space-between; margin-bottom: 8px;">' +
+        '<span style="color: var(--gray);">Email:</span>' +
+        '<strong style="font-family: monospace;">' + creds.caja.email + '</strong></div>' +
+        '<div style="display: flex; justify-content: space-between;">' +
+        '<span style="color: var(--gray);">Password:</span>' +
+        '<strong style="font-family: monospace; color: var(--primary);">' + creds.caja.password + '</strong></div></div></div>';
     
     document.getElementById('detalleNombre').innerHTML = '<i class="fas fa-key"></i> Credenciales de Acceso';
     document.getElementById('detalleContenido').innerHTML = html;

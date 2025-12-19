@@ -21,6 +21,7 @@
                     <th>Cliente</th>
                     <th>Teléfono</th>
                     <th>Tipo</th>
+                    <th>Pago</th>
                     <th>Total</th>
                     <th>Estado</th>
                     <th>Fecha</th>
@@ -39,6 +40,13 @@
                             <span class="badge badge-success">🍽️ Local</span>
                         {% else %}
                             <span class="badge badge-warning">📦 Para llevar</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if pedido.metodo_pago == 'wompi' %}
+                            <span class="badge badge-success">✅ Pagado</span>
+                        {% else %}
+                            <span class="badge badge-secondary">💵 Efectivo</span>
                         {% endif %}
                     </td>
                     <td><strong>${{ "%.2f"|format(pedido.total) }}</strong></td>
@@ -63,7 +71,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" class="text-center text-muted" style="padding: 40px;">
+                    <td colspan="8" class="text-center text-muted" style="padding: 40px;">
                         No hay pedidos
                     </td>
                 </tr>

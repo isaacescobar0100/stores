@@ -3,89 +3,392 @@
 {% block title %}Checkout - {{ tienda.nombre }}{% endblock %}
 
 {% block extra_styles %}
+/* ============ CHECKOUT PAGE - DISEÑO MODERNO ============ */
 .checkout-page {
     min-height: 100vh;
-    background: var(--gray-100);
-    padding: 24px;
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+    padding: 20px;
+    padding-bottom: 100px;
 }
 
 .checkout-container {
-    max-width: 600px;
+    max-width: 480px;
     margin: 0 auto;
 }
 
+/* Header mejorado */
 .checkout-header {
     text-align: center;
     margin-bottom: 24px;
+    padding: 20px 0;
 }
 
 .checkout-header h1 {
-    font-size: 24px;
-    margin-bottom: 8px;
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.checkout-header h1::before {
+    content: '';
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .checkout-back {
     color: var(--primary);
-    font-weight: 500;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: var(--primary-light);
+    transition: all 0.3s ease;
 }
 
+.checkout-back:hover {
+    background: var(--primary);
+    color: white;
+    transform: translateX(-4px);
+}
+
+/* ============ STEPPER DE PROGRESO ============ */
+.checkout-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 28px;
+    padding: 0 10px;
+}
+
+.stepper-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+}
+
+.stepper-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    border: 3px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: var(--text-muted);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.stepper-step.active .stepper-icon {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border-color: var(--primary);
+    color: white;
+    box-shadow: 0 4px 15px var(--primary-light);
+    transform: scale(1.1);
+}
+
+.stepper-step.completed .stepper-icon {
+    background: linear-gradient(135deg, #10b981, #059669);
+    border-color: #10b981;
+    color: white;
+}
+
+.stepper-step.completed .stepper-icon::after {
+    content: '\f00c';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    position: absolute;
+}
+
+.stepper-step.completed .stepper-icon i {
+    display: none;
+}
+
+.stepper-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-top: 8px;
+    text-align: center;
+    transition: color 0.3s;
+}
+
+.stepper-step.active .stepper-label,
+.stepper-step.completed .stepper-label {
+    color: var(--text-primary);
+}
+
+.stepper-line {
+    flex: 1;
+    height: 3px;
+    background: var(--border-color);
+    margin: 0 -5px;
+    margin-bottom: 20px;
+    position: relative;
+    max-width: 60px;
+    min-width: 40px;
+}
+
+.stepper-line::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #10b981, var(--primary));
+    transition: width 0.5s ease;
+}
+
+.stepper-line.completed::after {
+    width: 100%;
+}
+
+/* Cards mejoradas */
 .checkout-card {
-    background: white;
-    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    border-radius: 20px;
     padding: 24px;
     margin-bottom: 16px;
-    box-shadow: var(--shadow);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.checkout-card:hover {
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
 }
 
 .checkout-card h2 {
-    font-size: 18px;
-    margin-bottom: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 20px;
     padding-bottom: 12px;
-    border-bottom: 1px solid var(--gray-200);
+    border-bottom: 2px solid var(--border-color);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
+.checkout-card h2 i {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--primary-light), transparent);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    font-size: 14px;
+}
+
+/* Resumen del pedido mejorado */
 .order-item {
     display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.order-item:last-of-type {
+    border-bottom: none;
+}
+
+.order-item-img {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    object-fit: cover;
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+}
+
+.order-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.order-item-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.order-item-qty {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.order-item-price {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--primary);
+}
+
+.order-subtotals {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 2px dashed var(--border-color);
+}
+
+.order-row {
+    display: flex;
     justify-content: space-between;
+    align-items: center;
     padding: 8px 0;
     font-size: 14px;
+    color: var(--text-secondary);
 }
 
 .order-total {
     display: flex;
     justify-content: space-between;
-    padding-top: 12px;
+    align-items: center;
+    padding: 16px;
     margin-top: 12px;
-    border-top: 2px solid var(--gray-200);
+    background: linear-gradient(135deg, var(--primary-light), transparent);
+    border-radius: 12px;
     font-size: 18px;
-    font-weight: 700;
+    font-weight: 800;
 }
 
+.order-total span:last-child {
+    color: var(--primary);
+    font-size: 22px;
+}
+
+/* Selector tipo de pedido mejorado */
 .tipo-pedido {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 12px;
-    margin-bottom: 16px;
 }
 
 .tipo-btn {
-    flex: 1;
-    padding: 16px;
-    border: 2px solid var(--gray-200);
-    border-radius: var(--radius);
-    background: white;
+    position: relative;
+    padding: 20px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 16px;
+    background: var(--bg-card);
     cursor: pointer;
     text-align: center;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.tipo-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--primary);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.tipo-btn:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
 }
 
 .tipo-btn.active {
     border-color: var(--primary);
-    background: #fff5f3;
+    background: linear-gradient(to bottom, var(--primary-light), var(--bg-card));
 }
 
-.tipo-btn-icon { font-size: 24px; }
-.tipo-btn-text { font-weight: 600; margin-top: 4px; }
+.tipo-btn.active::before {
+    transform: scaleX(1);
+}
 
+.tipo-btn-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 12px;
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+}
+
+.tipo-btn.active .tipo-btn-icon {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 4px 15px var(--primary-light);
+}
+
+.tipo-btn-text {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.tipo-btn-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.tipo-btn.active .tipo-btn-text {
+    color: var(--primary);
+}
+
+/* Checkmark en selección activa */
+.tipo-btn-check {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 24px;
+    height: 24px;
+    background: var(--primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.3s ease;
+}
+
+.tipo-btn.active .tipo-btn-check {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Success page */
 .checkout-success {
     text-align: center;
     padding: 40px;
@@ -94,20 +397,35 @@
 .success-icon { font-size: 64px; margin-bottom: 16px; }
 .success-order { font-size: 32px; font-weight: 700; color: var(--primary); }
 
+/* Cliente encontrado banner */
 .cliente-encontrado {
-    background: #dcfce7;
-    border: 1px solid #22c55e;
-    border-radius: var(--radius);
-    padding: 12px;
-    margin-bottom: 16px;
+    background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+    border: 2px solid #22c55e;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 20px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .cliente-encontrado i {
-    color: #22c55e;
-    font-size: 20px;
+    width: 40px;
+    height: 40px;
+    background: #22c55e;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 18px;
+    flex-shrink: 0;
 }
 
 .cliente-encontrado-texto {
@@ -115,33 +433,308 @@
 }
 
 .cliente-encontrado-nombre {
-    font-weight: 600;
+    font-weight: 700;
     color: #166534;
+    font-size: 15px;
 }
 
 .cliente-encontrado-dir {
     font-size: 13px;
     color: #15803d;
+    margin-top: 2px;
 }
 
 .btn-cambiar-dir {
-    background: transparent;
-    border: 1px solid #22c55e;
+    background: white;
+    border: 2px solid #22c55e;
     color: #22c55e;
-    padding: 6px 12px;
-    border-radius: var(--radius);
+    padding: 8px 16px;
+    border-radius: 20px;
     font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
+    transition: all 0.3s ease;
 }
 
 .btn-cambiar-dir:hover {
     background: #22c55e;
     color: white;
+    transform: scale(1.05);
 }
 
 .campo-bloqueado {
-    background: #f3f4f6 !important;
-    color: #6b7280;
+    background: var(--bg-secondary) !important;
+    color: var(--text-secondary);
+    border-color: var(--border-color) !important;
+}
+
+/* ============ METODO DE PAGO ============ */
+.metodo-pago {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.metodo-btn {
+    position: relative;
+    padding: 20px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 16px;
+    background: var(--bg-card);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.metodo-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--primary);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.metodo-btn:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
+
+.metodo-btn.active {
+    border-color: var(--primary);
+    background: linear-gradient(to bottom, var(--primary-light), var(--bg-card));
+}
+
+.metodo-btn.active::before {
+    transform: scaleX(1);
+}
+
+.metodo-btn-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 12px;
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+}
+
+.metodo-btn.active .metodo-btn-icon {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 4px 15px var(--primary-light);
+}
+
+.metodo-btn-icon.wompi {
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    color: white;
+}
+
+.metodo-btn.active .metodo-btn-icon.wompi {
+    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+}
+
+.metodo-btn-text {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.metodo-btn-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.metodo-btn.active .metodo-btn-text {
+    color: var(--primary);
+}
+
+.metodo-btn-check {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 24px;
+    height: 24px;
+    background: var(--primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.3s ease;
+}
+
+.metodo-btn.active .metodo-btn-check {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.wompi-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-top: 8px;
+}
+
+.metodo-pago-info {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.metodo-pago-info i {
+    color: var(--primary);
+    font-size: 16px;
+}
+
+.metodo-pago-info.wompi-info {
+    background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+    color: #5b21b6;
+}
+
+.metodo-pago-info.wompi-info i {
+    color: #7c3aed;
+}
+
+/* ============ FORMULARIO MEJORADO ============ */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 14px 18px;
+    border: 2px solid var(--border-color);
+    border-radius: 14px;
+    font-size: 15px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px var(--primary-light);
+    background: var(--bg-primary);
+}
+
+.form-input::placeholder {
+    color: var(--text-muted);
+}
+
+textarea.form-input {
+    resize: none;
+    min-height: 80px;
+}
+
+/* Input con icono */
+.input-icon-wrapper {
+    position: relative;
+}
+
+.input-icon-wrapper .form-input {
+    padding-left: 48px;
+}
+
+.input-icon-wrapper i {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 16px;
+    transition: color 0.3s ease;
+}
+
+.input-icon-wrapper .form-input:focus + i,
+.input-icon-wrapper:focus-within i {
+    color: var(--primary);
+}
+
+/* Botón de confirmar */
+.btn-confirm-order {
+    width: 100%;
+    padding: 18px 24px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    border: none;
+    border-radius: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 20px var(--primary-light);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-confirm-order::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.btn-confirm-order:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px var(--primary-light);
+}
+
+.btn-confirm-order:hover::before {
+    left: 100%;
+}
+
+.btn-confirm-order:active {
+    transform: translateY(0);
+}
+
+.btn-confirm-order i {
+    font-size: 18px;
 }
 
 /* Modal de rastreo */
@@ -398,38 +991,65 @@
     <div class="checkout-container">
         <div class="checkout-header">
             <h1>Finalizar Pedido</h1>
-            <a href="/" class="checkout-back">← Volver al menú</a>
+            <a href="/" class="checkout-back"><i class="fas fa-arrow-left"></i> Volver al menú</a>
+        </div>
+
+        <!-- Stepper de progreso -->
+        <div class="checkout-stepper">
+            <div class="stepper-step completed" id="step1">
+                <div class="stepper-icon"><i class="fas fa-shopping-cart"></i></div>
+                <span class="stepper-label">Carrito</span>
+            </div>
+            <div class="stepper-line completed" id="line1"></div>
+            <div class="stepper-step active" id="step2">
+                <div class="stepper-icon"><i class="fas fa-clipboard-list"></i></div>
+                <span class="stepper-label">Detalles</span>
+            </div>
+            <div class="stepper-line" id="line2"></div>
+            <div class="stepper-step" id="step3">
+                <div class="stepper-icon"><i class="fas fa-check-circle"></i></div>
+                <span class="stepper-label">Confirmar</span>
+            </div>
         </div>
 
         <div id="checkoutForm">
             <!-- Resumen -->
             <div class="checkout-card">
-                <h2>Tu Pedido</h2>
-                <div id="orderSummary">Cargando...</div>
+                <h2><i class="fas fa-receipt"></i> Tu Pedido</h2>
+                <div id="orderSummary">
+                    <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                        <p style="margin-top: 10px;">Cargando...</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Tipo de pedido -->
             <div class="checkout-card">
-                <h2>Tipo de Pedido</h2>
+                <h2><i class="fas fa-truck"></i> Tipo de Pedido</h2>
                 <div class="tipo-pedido">
                     <button type="button" class="tipo-btn active" onclick="setTipo('domicilio')" id="tipoDomicilio">
+                        <div class="tipo-btn-check"><i class="fas fa-check"></i></div>
                         <div class="tipo-btn-icon"><i class="fas fa-motorcycle"></i></div>
                         <div class="tipo-btn-text">Domicilio</div>
+                        <div class="tipo-btn-desc">Te lo llevamos</div>
                     </button>
                     <button type="button" class="tipo-btn" onclick="setTipo('para_llevar')" id="tipoLlevar">
+                        <div class="tipo-btn-check"><i class="fas fa-check"></i></div>
                         <div class="tipo-btn-icon"><i class="fas fa-shopping-bag"></i></div>
                         <div class="tipo-btn-text">Para llevar</div>
+                        <div class="tipo-btn-desc">Recoge en tienda</div>
                     </button>
                 </div>
             </div>
 
             <!-- Datos del cliente -->
             <div class="checkout-card">
-                <h2>Tus Datos</h2>
+                <h2><i class="fas fa-user"></i> Tus Datos</h2>
 
                 <!-- Banner cliente encontrado (oculto por defecto) -->
                 <div id="clienteEncontrado" class="cliente-encontrado" style="display: none;">
-                    <i class="fas fa-check-circle"></i>
+                    <i class="fas fa-check"></i>
                     <div class="cliente-encontrado-texto">
                         <div class="cliente-encontrado-nombre" id="clienteNombre"></div>
                         <div class="cliente-encontrado-dir" id="clienteDir"></div>
@@ -439,30 +1059,78 @@
 
                 <div class="form-group">
                     <label class="form-label">Teléfono *</label>
-                    <input type="tel" id="telefono" class="form-input" required placeholder="Ingresa tu teléfono" oninput="buscarCliente()">
+                    <div class="input-icon-wrapper">
+                        <input type="tel" id="telefono" class="form-input" required placeholder="Tu número de teléfono" oninput="buscarCliente()">
+                        <i class="fas fa-phone"></i>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Nombre *</label>
-                    <input type="text" id="nombre" class="form-input" required>
+                    <div class="input-icon-wrapper">
+                        <input type="text" id="nombre" class="form-input" required placeholder="Tu nombre completo">
+                        <i class="fas fa-user"></i>
+                    </div>
                 </div>
                 <div id="direccionGroup">
                     <div class="form-group">
                         <label class="form-label">Dirección *</label>
-                        <input type="text" id="direccion" class="form-input">
+                        <div class="input-icon-wrapper">
+                            <input type="text" id="direccion" class="form-input" placeholder="Tu dirección de entrega">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Referencias</label>
-                        <input type="text" id="referencias" class="form-input" placeholder="Ej: Casa azul, portón negro">
+                        <div class="input-icon-wrapper">
+                            <input type="text" id="referencias" class="form-input" placeholder="Ej: Casa azul, portón negro">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
                     </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Notas para tu pedido</label>
-                    <textarea id="notas" class="form-input" rows="2" placeholder="Ej: Sin cebolla, extra picante"></textarea>
+                    <textarea id="notas" class="form-input" rows="2" placeholder="Ej: Sin cebolla, extra picante..."></textarea>
                 </div>
             </div>
 
-            <button class="btn btn-primary btn-lg" style="width: 100%;" onclick="enviarPedido()">
-                Confirmar Pedido
+            <!-- Método de Pago -->
+            <div class="checkout-section">
+                <h3 class="section-title">
+                    <i class="fas fa-credit-card"></i>
+                    Método de Pago
+                </h3>
+                <div class="metodo-pago">
+                    <button type="button" class="metodo-btn active" data-metodo="efectivo" onclick="seleccionarMetodoPago('efectivo')">
+                        <div class="metodo-btn-icon efectivo">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <span class="metodo-btn-label">Efectivo</span>
+                        <span class="metodo-btn-desc">Paga al recibir</span>
+                        <i class="fas fa-check metodo-check"></i>
+                    </button>
+                    <button type="button" class="metodo-btn" data-metodo="wompi" onclick="seleccionarMetodoPago('wompi')">
+                        <div class="metodo-btn-icon wompi">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <span class="metodo-btn-label">Wompi</span>
+                        <span class="metodo-btn-desc">Pago en línea</span>
+                        <span class="wompi-badge">Seguro</span>
+                        <i class="fas fa-check metodo-check"></i>
+                    </button>
+                </div>
+                <div class="metodo-pago-info efectivo-info" id="efectivoInfo">
+                    <i class="fas fa-info-circle"></i>
+                    Pagarás en efectivo cuando recibas tu pedido
+                </div>
+                <div class="metodo-pago-info wompi-info" id="wompiInfo" style="display: none;">
+                    <i class="fas fa-shield-alt"></i>
+                    Serás redirigido a Wompi para completar tu pago de forma segura
+                </div>
+            </div>
+
+            <button class="btn-confirm-order" onclick="enviarPedido()">
+                <i class="fas fa-paper-plane"></i>
+                <span id="btnConfirmText">Confirmar Pedido</span>
             </button>
         </div>
 
@@ -511,11 +1179,37 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Wompi Widget -->
+<script src="https://checkout.wompi.co/widget.js"></script>
 <script>
 let tipoPedido = 'domicilio';
+let metodoPago = 'efectivo';
 let cartData = null;
 let clienteData = null;
 let buscarTimeout = null;
+
+// Seleccionar método de pago
+function seleccionarMetodoPago(metodo) {
+    metodoPago = metodo;
+
+    // Actualizar botones
+    document.querySelectorAll('.metodo-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`.metodo-btn[data-metodo="${metodo}"]`).classList.add('active');
+
+    // Mostrar info correspondiente
+    document.getElementById('efectivoInfo').style.display = metodo === 'efectivo' ? 'flex' : 'none';
+    document.getElementById('wompiInfo').style.display = metodo === 'wompi' ? 'flex' : 'none';
+
+    // Cambiar texto del botón
+    const btnText = document.getElementById('btnConfirmText');
+    if (metodo === 'wompi') {
+        btnText.innerHTML = '<i class="fas fa-lock"></i> Pagar con Wompi';
+    } else {
+        btnText.textContent = 'Confirmar Pedido';
+    }
+}
 
 // Buscar cliente cuando escribe telefono
 function buscarCliente() {
@@ -614,39 +1308,56 @@ function loadCart() {
         });
 }
 
+const PLACEHOLDER_IMG = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"%3E%3Crect fill="%23f0f0f0" width="60" height="60"/%3E%3Cpath fill="%23ccc" d="M20 25h20v10H20z"/%3E%3Ccircle fill="%23ccc" cx="25" cy="22" r="4"/%3E%3C/svg%3E';
+
 function renderSummary(data) {
-    let html = data.carrito.map(item => `
+    // Items del carrito con imagen
+    let html = '<div class="order-items-list">';
+    html += data.carrito.map(item => `
         <div class="order-item">
-            <span>${item.cantidad}x ${item.nombre}</span>
-            <span>$${(item.precio * item.cantidad).toFixed(2)}</span>
+            <img class="order-item-img" src="${item.imagen || PLACEHOLDER_IMG}" alt="${item.nombre}" onerror="this.src=PLACEHOLDER_IMG">
+            <div class="order-item-info">
+                <div class="order-item-name">${item.nombre}</div>
+                <div class="order-item-qty">${item.cantidad} x $${formatPrice(item.precio)}</div>
+            </div>
+            <div class="order-item-price">$${formatPrice(item.precio * item.cantidad)}</div>
         </div>
     `).join('');
+    html += '</div>';
 
+    // Subtotales
+    html += '<div class="order-subtotals">';
     html += `
-        <div class="order-item text-muted">
+        <div class="order-row">
             <span>Subtotal</span>
-            <span>$${data.subtotal.toFixed(2)}</span>
+            <span>$${formatPrice(data.subtotal)}</span>
         </div>
     `;
 
     if (tipoPedido === 'domicilio') {
         html += `
-            <div class="order-item text-muted">
-                <span>Envío a domicilio</span>
-                <span>$${data.costo_domicilio.toFixed(2)}</span>
+            <div class="order-row">
+                <span><i class="fas fa-motorcycle" style="margin-right: 6px;"></i>Envío a domicilio</span>
+                <span>${data.costo_domicilio > 0 ? '$' + formatPrice(data.costo_domicilio) : 'Gratis'}</span>
             </div>
         `;
     }
+    html += '</div>';
 
+    // Total
     const total = tipoPedido === 'domicilio' ? data.total : data.subtotal;
     html += `
         <div class="order-total">
-            <span>Total</span>
-            <span style="color: var(--primary);">$${total.toFixed(2)}</span>
+            <span>Total a pagar</span>
+            <span>$${formatPrice(total)}</span>
         </div>
     `;
 
     document.getElementById('orderSummary').innerHTML = html;
+}
+
+function formatPrice(price) {
+    return Number(price).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 function setTipo(tipo) {
@@ -676,12 +1387,24 @@ function enviarPedido() {
         return;
     }
 
+    // Si es pago con Wompi, primero crear el pedido y luego abrir widget
+    if (metodoPago === 'wompi') {
+        procesarPagoWompi(nombre, telefono, direccion, referencias, notas);
+        return;
+    }
+
+    // Pago en efectivo - flujo normal
+    crearPedidoEfectivo(nombre, telefono, direccion, referencias, notas);
+}
+
+function crearPedidoEfectivo(nombre, telefono, direccion, referencias, notas) {
     fetch('/api/pedido', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             nombre, telefono, direccion, referencias, notas,
-            tipo: tipoPedido
+            tipo: tipoPedido,
+            metodo_pago: 'efectivo'
         })
     })
     .then(r => {
@@ -692,24 +1415,132 @@ function enviarPedido() {
     })
     .then(data => {
         if (data.success) {
-            currentOrderNumber = data.numero_orden;
-            document.getElementById('checkoutForm').style.display = 'none';
-            document.getElementById('checkoutSuccess').style.display = 'block';
-            document.getElementById('orderNumber').textContent = '#' + data.numero_orden;
-
-            // Registrar pedido para notificaciones
-            if (typeof trackNewOrder === 'function') {
-                trackNewOrder(data.numero_orden, 'pendiente');
-            }
+            mostrarExito(data.numero_orden);
         } else {
             alert(data.error || 'Error al crear pedido');
         }
     })
     .catch(err => {
         console.error('Error enviando pedido:', err);
-        // No mostrar alerta si el pedido se envió pero hubo error en la respuesta
-        // El pedido probablemente se guardó
     });
+}
+
+function procesarPagoWompi(nombre, telefono, direccion, referencias, notas) {
+    // Calcular total
+    const total = tipoPedido === 'domicilio' ? cartData.total : cartData.subtotal;
+
+    // Primero obtener la configuración de Wompi
+    fetch('/api/wompi/config')
+        .then(r => r.json())
+        .then(config => {
+            if (!config.habilitado) {
+                alert('El pago en línea no está disponible en este momento. Por favor selecciona pago en efectivo.');
+                return;
+            }
+
+            // Crear transacción en backend
+            fetch('/api/wompi/crear-transaccion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nombre, telefono, direccion, referencias, notas,
+                    tipo: tipoPedido,
+                    total: total * 100 // Wompi usa centavos
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    // Abrir widget de Wompi
+                    abrirWidgetWompi(data, config.public_key);
+                } else {
+                    alert(data.error || 'Error al iniciar pago');
+                }
+            })
+            .catch(err => {
+                console.error('Error creando transacción:', err);
+                alert('Error al procesar el pago. Intenta de nuevo.');
+            });
+        })
+        .catch(err => {
+            console.error('Error obteniendo config Wompi:', err);
+            alert('Error de conexión. Intenta de nuevo.');
+        });
+}
+
+function abrirWidgetWompi(transaccion, publicKey) {
+    // Debug: mostrar datos de la transacción
+    console.log('=== WOMPI DEBUG ===');
+    console.log('Public Key:', publicKey);
+    console.log('Referencia:', transaccion.referencia);
+    console.log('Monto (centavos):', transaccion.monto);
+    console.log('Firma:', transaccion.firma);
+    console.log('==================');
+
+    try {
+        const checkout = new WidgetCheckout({
+            currency: 'COP',
+            amountInCents: transaccion.monto,
+            reference: transaccion.referencia,
+            publicKey: publicKey,
+            signature: {
+                integrity: transaccion.firma
+            },
+            redirectUrl: window.location.origin + '/pago/resultado?ref=' + transaccion.referencia,
+            customerData: {
+                email: transaccion.email || 'cliente@example.com',
+                fullName: transaccion.nombre,
+                phoneNumber: transaccion.telefono,
+                phoneNumberPrefix: '+57'
+            },
+            onError: function(error) {
+                console.error('Error Wompi Widget:', error);
+                alert('Error al abrir el pago: ' + (error.message || JSON.stringify(error)));
+            }
+        });
+
+        checkout.open(function(result) {
+            console.log('Resultado completo:', result);
+            const transaction = result.transaction;
+
+            if (!transaction) {
+                console.log('Widget cerrado sin transacción');
+                return;
+            }
+
+            console.log('Resultado transacción:', transaction);
+
+            if (transaction.status === 'APPROVED') {
+                // Redirigir a página de resultado
+                window.location.href = '/pago/resultado?ref=' + transaccion.referencia;
+            } else if (transaction.status === 'DECLINED' || transaction.status === 'ERROR') {
+                alert('El pago no fue aprobado. Puedes intentar de nuevo o pagar en efectivo.');
+            }
+            // Si está pendiente, se verificará vía webhook
+        });
+    } catch (error) {
+        console.error('Error al crear WidgetCheckout:', error);
+        alert('Error al inicializar el pago. Ver consola para detalles.');
+    }
+}
+
+function mostrarExito(numeroOrden) {
+    currentOrderNumber = numeroOrden;
+
+    // Actualizar stepper a completado
+    document.getElementById('step2').classList.remove('active');
+    document.getElementById('step2').classList.add('completed');
+    document.getElementById('line2').classList.add('completed');
+    document.getElementById('step3').classList.add('active');
+
+    document.getElementById('checkoutForm').style.display = 'none';
+    document.getElementById('checkoutSuccess').style.display = 'block';
+    document.getElementById('orderNumber').textContent = '#' + numeroOrden;
+
+    // Registrar pedido para notificaciones
+    if (typeof trackNewOrder === 'function') {
+        trackNewOrder(numeroOrden, 'pendiente');
+    }
 }
 
 loadCart();

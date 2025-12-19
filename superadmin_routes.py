@@ -672,6 +672,7 @@ def api_tienda_crear():
         password_admin = gen_password()
         password_mesero = gen_password()
         password_cocina = gen_password()
+        password_caja = gen_password()
         
         # Crear usuarios admin y cocina
         from werkzeug.security import generate_password_hash
@@ -691,7 +692,12 @@ def api_tienda_crear():
             INSERT INTO usuarios (tienda_id, email, password_hash, nombre, rol)
             VALUES (?, ?, ?, ?, ?)
         """), (tienda_id, f'cocina@{subdominio}.vxplay.online', generate_password_hash(password_cocina), f'Cocina {data["nombre"]}', 'cocina'))
-        
+
+        db.execute(q("""
+            INSERT INTO usuarios (tienda_id, email, password_hash, nombre, rol)
+            VALUES (?, ?, ?, ?, ?)
+        """), (tienda_id, f'caja@{subdominio}.vxplay.online', generate_password_hash(password_caja), f'Caja {data["nombre"]}', 'caja'))
+
         db.commit()
 
         return jsonify({
@@ -710,6 +716,10 @@ def api_tienda_crear():
                 'cocina': {
                     'email': f'cocina@{subdominio}.vxplay.online',
                     'password': password_cocina
+                },
+                'caja': {
+                    'email': f'caja@{subdominio}.vxplay.online',
+                    'password': password_caja
                 }
             }
         })

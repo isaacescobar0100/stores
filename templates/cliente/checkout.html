@@ -1108,7 +1108,7 @@ textarea.form-input {
                         <span class="metodo-btn-desc">Paga al recibir</span>
                         <i class="fas fa-check metodo-check"></i>
                     </button>
-                    <button type="button" class="metodo-btn" data-metodo="wompi" onclick="seleccionarMetodoPago('wompi')">
+                    <button type="button" class="metodo-btn" id="btnWompi" data-metodo="wompi" onclick="seleccionarMetodoPago('wompi')" style="display: none;">
                         <div class="metodo-btn-icon wompi">
                             <i class="fas fa-lock"></i>
                         </div>
@@ -1187,6 +1187,23 @@ let metodoPago = 'efectivo';
 let cartData = null;
 let clienteData = null;
 let buscarTimeout = null;
+let wompiHabilitado = false;
+
+// Verificar si Wompi está habilitado para esta tienda
+(function verificarWompi() {
+    fetch('/api/wompi/config')
+        .then(r => r.json())
+        .then(config => {
+            wompiHabilitado = config.habilitado;
+            if (wompiHabilitado) {
+                document.getElementById('btnWompi').style.display = 'flex';
+            }
+        })
+        .catch(() => {
+            // Si hay error, Wompi se queda oculto
+            wompiHabilitado = false;
+        });
+})();
 
 // Seleccionar método de pago
 function seleccionarMetodoPago(metodo) {

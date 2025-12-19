@@ -600,6 +600,10 @@ def api_tienda_get(id):
             result[key] = float(value)
         else:
             result[key] = value
+    # Log de campos Wompi
+    print(f"Wompi activo: {result.get('wompi_activo')}")
+    print(f"Wompi public: {result.get('wompi_public_key')}")
+    print(f"Wompi private existe: {bool(result.get('wompi_private_key'))}")
     return jsonify(result)
 
 

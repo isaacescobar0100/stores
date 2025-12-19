@@ -460,6 +460,43 @@
                 </div>
             </div>
 
+            <!-- Pasarela de Pago Wompi -->
+            <div style="border-top: 1px solid var(--gray-light); margin: 20px 0; padding-top: 20px;">
+                <h4 style="margin-bottom: 15px;"><i class="fas fa-credit-card" style="color: #8b5cf6;"></i> Pasarela de Pago (Wompi)</h4>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="tiendaWompiActivo" name="wompi_activo" value="1" style="width: 20px; height: 20px; cursor: pointer;">
+                        <span><i class="fas fa-toggle-on" style="color: var(--success);"></i> Activar pagos con Wompi</span>
+                    </label>
+                    <small style="color: var(--gray);">Si está activo, los clientes podrán pagar con tarjeta, PSE, Nequi, etc.</small>
+                </div>
+                <div id="wompiCredenciales" style="display: none; background: var(--light); padding: 15px; border-radius: 8px; margin-top: 10px;">
+                    <div class="form-group">
+                        <label><i class="fas fa-key" style="color: var(--warning);"></i> Public Key</label>
+                        <input type="text" id="tiendaWompiPublicKey" name="wompi_public_key" class="form-control" placeholder="pub_prod_xxxxxxxx o pub_test_xxxxxxxx">
+                        <small style="color: var(--gray);">Llave pública de Wompi (empieza con pub_)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock" style="color: var(--danger);"></i> Private Key</label>
+                        <input type="password" id="tiendaWompiPrivateKey" name="wompi_private_key" class="form-control" placeholder="prv_prod_xxxxxxxx o prv_test_xxxxxxxx">
+                        <small style="color: var(--gray);">Llave privada de Wompi (empieza con prv_) - Se guardará encriptada</small>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-bell" style="color: var(--primary);"></i> Evento Key (Webhook)</label>
+                        <input type="password" id="tiendaWompiEventoKey" name="wompi_evento_key" class="form-control" placeholder="prod_events_xxxxxxxx o test_events_xxxxxxxx">
+                        <small style="color: var(--gray);">Para validar los webhooks de Wompi (opcional pero recomendado)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-shield-alt" style="color: #10b981;"></i> Integrity Key (Firma)</label>
+                        <input type="password" id="tiendaWompiIntegrityKey" name="wompi_integrity_key" class="form-control" placeholder="prod_integrity_xxxxxxxx o test_integrity_xxxxxxxx">
+                        <small style="color: var(--gray);">Llave de integridad para firmar transacciones (requerida para pagos)</small>
+                    </div>
+                    <div style="background: #fef3c7; padding: 10px; border-radius: 6px; margin-top: 10px;">
+                        <small style="color: #92400e;"><i class="fas fa-info-circle"></i> Las credenciales se obtienen en el panel de comercios de Wompi: <a href="https://comercios.wompi.co" target="_blank" style="color: #92400e;">comercios.wompi.co</a></small>
+                    </div>
+                </div>
+            </div>
+
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="cerrarModal()">
@@ -492,6 +529,16 @@
 </div>
 
 <script>
+// Toggle Wompi credenciales visibility
+document.addEventListener('DOMContentLoaded', function() {
+    const wompiCheckbox = document.getElementById('tiendaWompiActivo');
+    if (wompiCheckbox) {
+        wompiCheckbox.addEventListener('change', function() {
+            document.getElementById('wompiCredenciales').style.display = this.checked ? 'block' : 'none';
+        });
+    }
+});
+
 function abrirModalNueva() {
     document.getElementById('modalTitulo').textContent = 'Nueva Tienda';
     document.getElementById('formTienda').reset();
@@ -499,6 +546,9 @@ function abrirModalNueva() {
     resetFormPersonalizacion();
     categoriasSeleccionadas = [];
     cargarCategoriasMaestras();
+    // Reset Wompi
+    document.getElementById('tiendaWompiActivo').checked = false;
+    document.getElementById('wompiCredenciales').style.display = 'none';
     document.getElementById('modalTienda').classList.add('active');
 }
 
@@ -546,6 +596,15 @@ function editarTienda(id) {
             document.getElementById('tiendaCostoDomicilio').value = tienda.costo_domicilio || 0;
             document.getElementById('tiendaPedidoMinimo').value = tienda.pedido_minimo || 0;
             document.getElementById('tiendaModoPedido').value = tienda.modo_pedido || 'normal';
+
+            // Wompi
+            const wompiActivo = tienda.wompi_activo == 1;
+            document.getElementById('tiendaWompiActivo').checked = wompiActivo;
+            document.getElementById('wompiCredenciales').style.display = wompiActivo ? 'block' : 'none';
+            document.getElementById('tiendaWompiPublicKey').value = tienda.wompi_public_key || '';
+            document.getElementById('tiendaWompiPrivateKey').value = tienda.wompi_private_key ? '********' : '';
+            document.getElementById('tiendaWompiEventoKey').value = tienda.wompi_evento_key ? '********' : '';
+            document.getElementById('tiendaWompiIntegrityKey').value = tienda.wompi_integrity_key ? '********' : '';
 
             document.getElementById('modalTienda').classList.add('active');
         })

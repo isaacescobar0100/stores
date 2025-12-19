@@ -2167,27 +2167,33 @@ logger.info(f"Wompi configurado: {'Sí' if WOMPI_PUBLIC_KEY else 'No'} - Sandbox
 if WOMPI_PUBLIC_KEY:
     logger.info(f"Wompi Public Key: {WOMPI_PUBLIC_KEY[:20]}...")
 
-def generar_firma_wompi(referencia, monto_centavos, moneda='COP'):
+def generar_firma_wompi(referencia, monto_centavos, integrity_key, moneda='COP'):
     """Genera la firma de integridad para Wompi"""
     # La firma es: SHA256(referencia + monto_en_centavos + moneda + integrity_key)
-    cadena = f"{referencia}{monto_centavos}{moneda}{WOMPI_INTEGRITY_KEY}"
+    cadena = f"{referencia}{monto_centavos}{moneda}{integrity_key}"
     return hashlib.sha256(cadena.encode()).hexdigest()
 
 @app.route('/api/wompi/config', methods=['GET'])
 @requiere_tienda
 def wompi_config():
     """Retorna la configuración de Wompi para el frontend"""
-    # Verificar si Wompi está configurado para esta tienda
-    if not WOMPI_PUBLIC_KEY or WOMPI_PUBLIC_KEY.startswith('pub_test_XXX'):
+    # Verificar si Wompi está configurado y activo para esta tienda
+    wompi_activo = g.tienda.get('wompi_activo', 0) == 1
+    wompi_public_key = g.tienda.get('wompi_public_key', '')
+
+    if not wompi_activo or not wompi_public_key:
         return jsonify({
             'habilitado': False,
-            'message': 'Wompi no está configurado'
+            'message': 'Wompi no está configurado para esta tienda'
         })
+
+    # Determinar si es sandbox basado en la llave
+    is_sandbox = wompi_public_key.startswith('pub_test_')
 
     return jsonify({
         'habilitado': True,
-        'public_key': WOMPI_PUBLIC_KEY,
-        'sandbox': WOMPI_SANDBOX
+        'public_key': wompi_public_key,
+        'sandbox': is_sandbox
     })
 
 @app.route('/api/v1/pedidos/<int:pedido_id>/generar-link-pago', methods=['POST'])
@@ -2301,8 +2307,9 @@ def wompi_crear_transaccion():
     # El total ya está en pesos, convertir a centavos para Wompi
     monto_centavos = int(float(total) * 100)
 
-    # Generar firma de integridad
-    firma = generar_firma_wompi(referencia, monto_centavos)
+    # Generar firma de integridad usando la key de la tienda
+    integrity_key = g.tienda.get('wompi_integrity_key', '') or WOMPI_INTEGRITY_KEY
+    firma = generar_firma_wompi(referencia, monto_centavos, integrity_key)
 
     # Guardar datos del pedido pendiente en sesión (NO en BD)
     session['wompi_pendiente'] = {

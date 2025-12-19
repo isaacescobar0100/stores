@@ -764,6 +764,32 @@ def api_tienda_actualizar(id):
             WHERE id = ?
         '''), (data['nombre'], data['subdominio'], data.get('email'), data.get('telefono'), data.get('direccion'), data.get('horario'), data.get('slogan'),
               data.get('logo'), data.get('color_primario'), data.get('color_secundario'), data.get('color_terciario'), data.get('banner_url'), costo_dom, pedido_min, modo_ped, id))
+
+        # Actualizar Wompi si se envió
+        wompi_activo = 1 if data.get('wompi_activo') else 0
+        wompi_public = data.get('wompi_public_key', '')
+        wompi_private = data.get('wompi_private_key', '')
+        wompi_evento = data.get('wompi_evento_key', '')
+        wompi_integrity = data.get('wompi_integrity_key', '')
+
+        # Construir lista de campos a actualizar para Wompi
+        wompi_updates = ['wompi_activo = ?', 'wompi_public_key = ?']
+        wompi_values = [wompi_activo, wompi_public]
+
+        # Solo actualizar credenciales secretas si no son asteriscos (placeholder)
+        if wompi_private and wompi_private != '********':
+            wompi_updates.append('wompi_private_key = ?')
+            wompi_values.append(wompi_private)
+        if wompi_evento and wompi_evento != '********':
+            wompi_updates.append('wompi_evento_key = ?')
+            wompi_values.append(wompi_evento)
+        if wompi_integrity and wompi_integrity != '********':
+            wompi_updates.append('wompi_integrity_key = ?')
+            wompi_values.append(wompi_integrity)
+
+        wompi_values.append(id)
+        db.execute(q(f"UPDATE tiendas SET {', '.join(wompi_updates)} WHERE id = ?"), wompi_values)
+
         db.commit()
 
         # Actualizar categorías si se enviaron

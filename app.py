@@ -2410,10 +2410,10 @@ def crear_pedido_wompi_confirmado(datos):
         # Crear pedido con método de pago wompi (YA PAGADO)
         cursor.execute('''
             INSERT INTO pedidos (tienda_id, cliente_id, numero_orden, tipo, subtotal,
-                               costo_domicilio, total, notas, estado, metodo_pago)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pendiente', 'wompi')
+                               costo_domicilio, total, notas, estado, metodo_pago, direccion_entrega)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pendiente', 'wompi', %s)
         ''', (datos['tienda_id'], cliente_id, numero_orden, datos['tipo'],
-              datos['subtotal'], datos['costo_domicilio'], datos['total'], datos['notas']))
+              datos['subtotal'], datos['costo_domicilio'], datos['total'], datos['notas'], datos.get('direccion', '')))
         pedido_id = cursor.lastrowid
 
         # Obtener un producto valido de la tienda para usar como fallback

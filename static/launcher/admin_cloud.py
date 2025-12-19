@@ -2528,6 +2528,32 @@ class PedidoDetailDialog(ctk.CTkToplevel):
         total = float(pedido.get('total', 0) or 0)
         self._add_info_row(info_content, "Total", f"${total:,.0f}")
 
+        # Dirección (solo para domicilios)
+        tipo_pedido = pedido.get('tipo', '')
+        direccion = pedido.get('direccion_entrega', '')
+        if tipo_pedido == 'domicilio' and direccion:
+            dir_row = ctk.CTkFrame(info_content, fg_color="transparent")
+            dir_row.pack(fill='x', pady=(8, 0))
+            ctk.CTkLabel(dir_row, text="Dirección", font=ctk.CTkFont(size=12), text_color=Theme.TEXT_MUTED, width=100, anchor='w').pack(side='left')
+            ctk.CTkLabel(dir_row, text=direccion, font=ctk.CTkFont(size=12), text_color=Theme.ACCENT, wraplength=280, anchor='e', justify='right').pack(side='right')
+
+        # Método de pago
+        metodo_pago = pedido.get('metodo_pago', 'efectivo')
+        pago_row = ctk.CTkFrame(info_content, fg_color="transparent")
+        pago_row.pack(fill='x', pady=(12, 0))
+
+        ctk.CTkLabel(pago_row, text="Pago", font=ctk.CTkFont(size=12), text_color=Theme.TEXT_MUTED, width=100, anchor='w').pack(side='left')
+        if metodo_pago == 'wompi':
+            ctk.CTkLabel(pago_row, text="✓ TRANSFERENCIA",
+                        font=ctk.CTkFont(size=11, weight="bold"),
+                        fg_color="#166534", text_color="white",
+                        corner_radius=4, padx=8, pady=2).pack(side='right')
+        else:
+            ctk.CTkLabel(pago_row, text="💵 EFECTIVO",
+                        font=ctk.CTkFont(size=11, weight="bold"),
+                        fg_color="#78350f", text_color="#fbbf24",
+                        corner_radius=4, padx=8, pady=2).pack(side='right')
+
         # Productos
         ctk.CTkLabel(container, text="Productos", font=ctk.CTkFont(size=15, weight="bold"), text_color=Theme.TEXT_PRIMARY).pack(anchor='w', pady=(0, 12))
 

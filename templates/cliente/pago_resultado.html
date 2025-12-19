@@ -1,0 +1,311 @@
+{% extends 'base.html' %}
+
+{% block title %}Resultado del Pago - {{ tienda.nombre }}{% endblock %}
+
+{% block extra_styles %}
+.pago-resultado-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pago-resultado-card {
+    background: var(--bg-card);
+    border-radius: 24px;
+    padding: 40px;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+}
+
+.pago-icon {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+    font-size: 48px;
+}
+
+.pago-icon.success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    animation: pulseSuccess 2s infinite;
+}
+
+.pago-icon.pending {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    animation: pulsePending 1.5s infinite;
+}
+
+.pago-icon.error {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+}
+
+@keyframes pulseSuccess {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    50% { box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); }
+}
+
+@keyframes pulsePending {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+    50% { box-shadow: 0 0 0 15px rgba(245, 158, 11, 0); }
+}
+
+.pago-titulo {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.pago-mensaje {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+    line-height: 1.5;
+}
+
+.pago-detalles {
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.pago-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.pago-row:last-child {
+    border-bottom: none;
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.pago-row:last-child span:last-child {
+    color: var(--primary);
+}
+
+.pago-label {
+    color: var(--text-secondary);
+}
+
+.pago-value {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.btn-volver {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 32px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.btn-volver:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px var(--primary-light);
+}
+
+.estado-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+}
+
+.estado-badge.confirmado {
+    background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+    color: #166534;
+}
+
+.estado-badge.pendiente {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #b45309;
+}
+
+.estado-badge.error {
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+    color: #991b1b;
+}
+
+.loading-spinner {
+    display: none;
+    margin: 20px auto;
+}
+
+.loading-spinner.show {
+    display: block;
+}
+
+.loading-spinner i {
+    font-size: 32px;
+    color: var(--primary);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+{% endblock %}
+
+{% block content %}
+<div class="pago-resultado-page">
+    <div class="pago-resultado-card">
+        <!-- Estado del pago -->
+        <div id="pagoEstado">
+            {% if pedido.metodo_pago == 'wompi' %}
+            <!-- Pago confirmado -->
+            <div class="pago-icon success">
+                <i class="fas fa-check"></i>
+            </div>
+            <h1 class="pago-titulo">Pago Confirmado</h1>
+            <span class="estado-badge confirmado">Pagado</span>
+            <p class="pago-mensaje">
+                Tu pago ha sido procesado exitosamente. Ya estamos preparando tu pedido.
+            </p>
+            {% elif pedido.metodo_pago == 'wompi_fallido' %}
+            <!-- Pago fallido -->
+            <div class="pago-icon error">
+                <i class="fas fa-times"></i>
+            </div>
+            <h1 class="pago-titulo">Pago No Procesado</h1>
+            <span class="estado-badge error">Fallido</span>
+            <p class="pago-mensaje">
+                Hubo un problema con tu pago. Puedes intentar nuevamente o pagar en efectivo al recibir tu pedido.
+            </p>
+            {% else %}
+            <!-- Pago pendiente / verificando -->
+            <div class="pago-icon pending">
+                <i class="fas fa-clock"></i>
+            </div>
+            <h1 class="pago-titulo">Verificando Pago...</h1>
+            <span class="estado-badge pendiente">Procesando</span>
+            <p class="pago-mensaje">
+                Estamos verificando tu pago. Esto puede tomar unos segundos.
+            </p>
+            <div class="loading-spinner show">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Detalles del pedido -->
+        <div class="pago-detalles">
+            <div class="pago-row">
+                <span class="pago-label">Pedido #</span>
+                <span class="pago-value" id="numeroOrden">{{ pedido.numero_orden }}</span>
+            </div>
+            <div class="pago-row">
+                <span class="pago-label">Cliente</span>
+                <span class="pago-value">{{ pedido.cliente_nombre }}</span>
+            </div>
+            <div class="pago-row">
+                <span class="pago-label">Total</span>
+                <span class="pago-value">${{ "{:,.0f}".format(pedido.total)|replace(",", ".") }}</span>
+            </div>
+        </div>
+
+        <a href="/" class="btn-volver">
+            <i class="fas fa-home"></i>
+            Volver al Inicio
+        </a>
+    </div>
+</div>
+
+{% if referencia_wompi %}
+<script>
+// Verificar estado del pago cada 3 segundos
+let intentos = 0;
+const maxIntentos = 40; // Maximo 2 minutos
+const referenciaWompi = '{{ referencia_wompi }}';
+
+function mostrarExito(numeroOrden) {
+    const pagoEstado = document.getElementById('pagoEstado');
+    pagoEstado.innerHTML = `
+        <div class="pago-icon success">
+            <i class="fas fa-check"></i>
+        </div>
+        <h1 class="pago-titulo">¡Pago Confirmado!</h1>
+        <span class="estado-badge confirmado">Pagado</span>
+        <p class="pago-mensaje">
+            Tu pago ha sido procesado exitosamente. Ya estamos preparando tu pedido.
+        </p>
+    `;
+    document.getElementById('numeroOrden').textContent = numeroOrden;
+}
+
+function mostrarError() {
+    const pagoEstado = document.getElementById('pagoEstado');
+    pagoEstado.innerHTML = `
+        <div class="pago-icon error">
+            <i class="fas fa-times"></i>
+        </div>
+        <h1 class="pago-titulo">Pago No Procesado</h1>
+        <span class="estado-badge error">Fallido</span>
+        <p class="pago-mensaje">
+            Hubo un problema con tu pago. Puedes intentar nuevamente o pagar en efectivo al recibir tu pedido.
+        </p>
+    `;
+}
+
+function verificarPago() {
+    intentos++;
+    if (intentos > maxIntentos) {
+        document.querySelector('.loading-spinner').classList.remove('show');
+        document.querySelector('.pago-mensaje').textContent =
+            'El pago sigue en proceso. Recibirás una notificación cuando se confirme.';
+        return;
+    }
+
+    fetch('/api/wompi/verificar/' + referenciaWompi)
+        .then(r => r.json())
+        .then(data => {
+            console.log('Verificación Wompi:', data);
+            if (data.success && data.status === 'APPROVED') {
+                // Pago confirmado - actualizar UI
+                mostrarExito(data.numero_orden || '---');
+            } else if (data.success && ['DECLINED', 'ERROR', 'VOIDED'].includes(data.status)) {
+                // Pago fallido
+                mostrarError();
+            } else {
+                // Seguir verificando
+                setTimeout(verificarPago, 3000);
+            }
+        })
+        .catch((err) => {
+            console.error('Error verificando:', err);
+            setTimeout(verificarPago, 3000);
+        });
+}
+
+// Iniciar verificación después de 2 segundos
+setTimeout(verificarPago, 2000);
+</script>
+{% endif %}
+{% endblock %}

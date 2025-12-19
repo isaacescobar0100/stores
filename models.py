@@ -369,9 +369,11 @@ def init_database():
                 id INT PRIMARY KEY {auto},
                 tienda_id INT NOT NULL,
                 cliente_id INT,
+                mesero_id INT,
                 numero_orden VARCHAR(50),
                 tipo ENUM('domicilio', 'local', 'para_llevar') NOT NULL,
                 estado VARCHAR(50) DEFAULT 'pendiente',
+                metodo_pago VARCHAR(50) DEFAULT 'efectivo',
                 subtotal DECIMAL(10,2) NOT NULL,
                 costo_domicilio DECIMAL(10,2) DEFAULT 0,
                 total DECIMAL(10,2) NOT NULL,
@@ -383,7 +385,8 @@ def init_database():
                 fecha_listo TIMESTAMP NULL,
                 fecha_entrega TIMESTAMP NULL,
                 FOREIGN KEY (tienda_id) REFERENCES tiendas(id),
-                FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+                FOREIGN KEY (cliente_id) REFERENCES clientes(id),
+                FOREIGN KEY (mesero_id) REFERENCES usuarios(id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ''')
 
@@ -520,9 +523,11 @@ def init_database():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tienda_id INTEGER NOT NULL,
                 cliente_id INTEGER,
+                mesero_id INTEGER,
                 numero_orden TEXT,
                 tipo TEXT NOT NULL CHECK(tipo IN ('domicilio', 'local', 'para_llevar')),
                 estado TEXT DEFAULT 'pendiente',
+                metodo_pago TEXT DEFAULT 'efectivo',
                 subtotal REAL NOT NULL,
                 costo_domicilio REAL DEFAULT 0,
                 total REAL NOT NULL,
@@ -534,7 +539,8 @@ def init_database():
                 fecha_listo TIMESTAMP,
                 fecha_entrega TIMESTAMP,
                 FOREIGN KEY (tienda_id) REFERENCES tiendas(id),
-                FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+                FOREIGN KEY (cliente_id) REFERENCES clientes(id),
+                FOREIGN KEY (mesero_id) REFERENCES usuarios(id)
             )
         ''')
 
@@ -643,7 +649,22 @@ def init_database():
     # REMOVIDO:                 ''', (tienda_id, 'admin@demo.com', generate_password_hash('admin123'), 'Admin Demo', 'admin'))
     # REMOVIDO:         except:
     # REMOVIDO:             pass
-    # REMOVIDO: 
+    # REMOVIDO:
+
+    # ============ MIGRACIONES ============
+    # Agregar columnas que pueden faltar en bases de datos existentes
+    migraciones = [
+        "ALTER TABLE pedidos ADD COLUMN metodo_pago VARCHAR(50) DEFAULT 'efectivo'",
+        "ALTER TABLE pedidos ADD COLUMN mesero_id INT",
+    ]
+
+    for sql in migraciones:
+        try:
+            cursor.execute(sql)
+        except Exception as e:
+            # Ignorar si la columna ya existe
+            pass
+
     conn.commit()
     conn.close()
     print(f"Base de datos inicializada correctamente (usando {DB_TYPE})")
@@ -1443,6 +1464,29 @@ class Pedido:
         conn.close()
 
     @staticmethod
+    def obtener_por_id(pedido_id, tienda_id=None):
+        """Obtener un pedido por su ID"""
+        p = get_placeholder()
+        conn = get_connection()
+        cursor = conn.cursor()
+        query = f'''
+            SELECT p.*, c.nombre as cliente_nombre, c.telefono as cliente_telefono,
+                   u.nombre as mesero_nombre
+            FROM pedidos p
+            LEFT JOIN clientes c ON p.cliente_id = c.id
+            LEFT JOIN usuarios u ON p.mesero_id = u.id
+            WHERE p.id = {p}
+        '''
+        params = [pedido_id]
+        if tienda_id:
+            query += f' AND p.tienda_id = {p}'
+            params.append(tienda_id)
+        cursor.execute(query, params)
+        row = cursor.fetchone()
+        conn.close()
+        return dict_from_row(row) if row else None
+
+    @staticmethod
     def obtener_por_tienda(tienda_id, estado=None, limite=50):
         p = get_placeholder()
         conn = get_connection()
@@ -1471,9 +1515,11 @@ class Pedido:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(f'''
-            SELECT p.*, c.nombre as cliente_nombre, c.telefono as cliente_telefono
+            SELECT p.*, c.nombre as cliente_nombre, c.telefono as cliente_telefono,
+                   u.nombre as mesero_nombre
             FROM pedidos p
             LEFT JOIN clientes c ON p.cliente_id = c.id
+            LEFT JOIN usuarios u ON p.mesero_id = u.id
             WHERE p.tienda_id = {p} AND p.estado IN ('pendiente', 'confirmado', 'preparando')
             ORDER BY
                 CASE p.estado

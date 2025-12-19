@@ -18,10 +18,19 @@ import time
 
 # Cargar variables de entorno desde .env o .env.local
 from dotenv import load_dotenv
-if os.path.exists('.env.local'):
-    load_dotenv('.env.local')
+# Usar ruta absoluta basada en el directorio del script
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+env_local_path = os.path.join(BASE_DIR, '.env.local')
+env_path = os.path.join(BASE_DIR, '.env')
+
+if os.path.exists(env_local_path):
+    load_dotenv(env_local_path)
+    print(f"[ENV] Cargado: {env_local_path}")
+elif os.path.exists(env_path):
+    load_dotenv(env_path)
+    print(f"[ENV] Cargado: {env_path}")
 else:
-    load_dotenv()
+    print("[ENV] No se encontró archivo .env")
 
 # Configurar logging
 logging.basicConfig(
@@ -74,10 +83,19 @@ def get_client_ip():
         return request.headers.get('X-Real-IP')
     return get_remote_address()
 
+# Usar Redis si está disponible, sino memoria
+try:
+    import redis
+    r = redis.from_url(REDIS_URL)
+    r.ping()
+    limiter_storage = REDIS_URL
+except:
+    limiter_storage = "memory://"
+
 limiter = Limiter(
     app=app,
     key_func=get_client_ip,
-    storage_uri=REDIS_URL,
+    storage_uri=limiter_storage,
     default_limits=["200 per minute", "50 per second"],
     strategy="fixed-window"
 )
@@ -155,9 +173,13 @@ def detectar_tienda():
     g.tienda = None
     g.modo_catalogo = False  # Nuevo: modo solo catalogo
 
+    # Excluir archivos estaticos
+    if request.path.startswith('/static/'):
+        return
+
     # En desarrollo, usar parametro ?tienda=slug
     if DEBUG:
-        slug = request.args.get('tienda') or session.get('tienda_slug', 'demo')
+        slug = request.args.get('tienda') or session.get('tienda_slug')
         # Detectar modo catalogo en desarrollo
         if slug and slug.endswith('-menu'):
             slug = slug[:-5]  # Quitar -menu
@@ -180,9 +202,21 @@ def detectar_tienda():
                 g.modo_catalogo = True
             g.tienda = Tienda.obtener_por_subdominio(subdominio)
 
-    # Si no hay tienda, usar demo o mostrar selector
+    # Si no hay tienda, usar demo o primera disponible
     if not g.tienda:
         g.tienda = Tienda.obtener_por_subdominio('demo')
+        # Si no existe demo, obtener la primera tienda disponible
+        if not g.tienda:
+            try:
+                todas = Tienda.obtener_todas()
+                # Filtrar solo activas
+                activas = [t for t in todas if t and t.get('activo', 0) == 1]
+                if activas:
+                    g.tienda = activas[0]
+                    session['tienda_slug'] = g.tienda.get('subdominio', g.tienda.get('slug', ''))
+                    logger.info(f"Usando tienda por defecto: {g.tienda.get('nombre')}")
+            except Exception as e:
+                logger.error(f"Error obteniendo primera tienda: {e}")
 
 
 def requiere_tienda(f):
@@ -190,6 +224,9 @@ def requiere_tienda(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not g.tienda:
+            # Si es una ruta API, retornar JSON
+            if request.path.startswith('/api/'):
+                return jsonify({'error': 'Tienda no encontrada', 'encontrado': False}), 404
             return render_template('error.html', mensaje="Tienda no encontrada"), 404
         return f(*args, **kwargs)
     return decorated
@@ -344,6 +381,14 @@ def checkout():
 def api_carrito():
     """Obtener carrito actual"""
     carrito = session.get('carrito', [])
+
+    # Enriquecer carrito con imágenes actualizadas de productos
+    for item in carrito:
+        if not item.get('imagen') and item.get('producto_id'):
+            producto = Producto.obtener_por_id(item['producto_id'])
+            if producto:
+                item['imagen'] = producto.get('imagen', '')
+
     # Asegurar que precio sea float
     subtotal = sum(float(item.get('precio', 0)) * int(item.get('cantidad', 1)) for item in carrito)
     costo_domicilio = float(g.tienda.get('costo_domicilio', 0)) if g.tienda else 0
@@ -375,6 +420,9 @@ def api_carrito_agregar():
     # Key único para productos: incluye nombre para diferenciar variantes
     item_key = f"{producto['id']}_{nombre}_{descuento}"
 
+    # Obtener imagen del producto
+    imagen = producto.get('imagen', '')
+
     # Buscar si ya existe (usar .get() para evitar KeyError con ofertas)
     for item in carrito:
         item_existing_key = f"{item.get('producto_id')}_{item.get('nombre', '')}_{item.get('descuento', 0)}"
@@ -387,7 +435,8 @@ def api_carrito_agregar():
             'nombre': nombre,
             'precio': precio,
             'cantidad': cantidad_nueva,
-            'descuento': descuento
+            'descuento': descuento,
+            'imagen': imagen
         })
 
     session['carrito'] = carrito
@@ -462,6 +511,9 @@ def api_carrito_agregar_oferta():
     precio = data.get('precio', 0) or oferta.get('precio_oferta') or 0
     precio = float(precio) if precio else 0
 
+    # Obtener imagen de la oferta
+    imagen = oferta.get('imagen', '')
+
     # Buscar si ya existe esta oferta en el carrito
     for item in carrito:
         if item.get('oferta_id') == oferta['id']:
@@ -473,7 +525,8 @@ def api_carrito_agregar_oferta():
             'nombre': data.get('titulo') or oferta['titulo'],
             'precio': precio,
             'cantidad': cantidad_nueva,
-            'es_oferta': True
+            'es_oferta': True,
+            'imagen': imagen
         })
 
     session['carrito'] = carrito
@@ -723,11 +776,13 @@ def ticket_pedido(pedido_id):
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Obtener pedido
+    # Obtener pedido con nombre del mesero
     cursor.execute('''
-        SELECT p.*, c.nombre as cliente_nombre, c.telefono as cliente_telefono
+        SELECT p.*, c.nombre as cliente_nombre, c.telefono as cliente_telefono,
+               u.nombre as mesero_nombre
         FROM pedidos p
         LEFT JOIN clientes c ON p.cliente_id = c.id
+        LEFT JOIN usuarios u ON p.mesero_id = u.id
         WHERE p.id = %s AND p.tienda_id = %s
     ''', (pedido_id, g.tienda['id']))
     pedido = cursor.fetchone()
@@ -1716,20 +1771,18 @@ def api_get_pedidos_cocina():
 @api_requiere_auth
 def api_get_pedido_detalle(id):
     """Obtener detalle de pedido"""
-    # Obtener info del pedido
-    pedidos = Pedido.obtener_por_tienda(g.tienda['id'])
-    pedido = None
-    for p in pedidos:
-        if p['id'] == id:
-            pedido = p
-            break
-    
+    # Obtener info del pedido directamente
+    pedido = Pedido.obtener_por_id(id, g.tienda['id'])
+
     if not pedido:
         return jsonify({'error': 'Pedido no encontrado'}), 404
-    
+
+    # Debug: Log metodo_pago
+    logger.info(f"Pedido {id} - metodo_pago: {pedido.get('metodo_pago')}")
+
     # Obtener items del pedido
     items = Pedido.obtener_detalle(id)
-    
+
     return jsonify({
         'pedido': pedido,
         'items': items
@@ -1987,13 +2040,6 @@ def handle_exception(e):
     return render_template('error.html', mensaje="Error inesperado"), 500
 
 
-# ============ INICIALIZACI??N ============
-if __name__ == '__main__':
-    init_database()
-    app.run(host='0.0.0.0', port=5000, debug=DEBUG)
-
-
-
 # ============ API DE ACTUALIZACIONES ============
 APP_VERSIONS = {
     'launcher': {'version': '2.8.2', 'file': 'RestaurantOS.exe'},
@@ -2047,26 +2093,49 @@ def rastrear_pedido_telefono(telefono):
     if not telefono:
         return jsonify({'error': 'Telefono requerido', 'encontrado': False})
 
+    # Limpiar telefono - solo numeros
+    telefono_limpio = ''.join(filter(str.isdigit, telefono))
+
     conn = get_connection()
     cursor = conn.cursor()
 
     # Buscar pedidos activos del cliente de HOY (no entregados ni cancelados)
+    # Nota: No filtramos por tienda para que el cliente pueda ver sus pedidos de cualquier tienda
     cursor.execute('''
         SELECT p.numero_orden, p.estado, p.total, p.fecha_pedido,
-               c.nombre as cliente_nombre
+               c.nombre as cliente_nombre, c.telefono as cliente_tel,
+               t.nombre as tienda_nombre
         FROM pedidos p
-        LEFT JOIN clientes c ON p.cliente_id = c.id
-        WHERE c.telefono = %s AND p.tienda_id = %s
+        INNER JOIN clientes c ON p.cliente_id = c.id
+        INNER JOIN tiendas t ON p.tienda_id = t.id
+        WHERE c.telefono = %s
         AND p.estado NOT IN ('entregado', 'cancelado')
         AND DATE(p.fecha_pedido) = CURDATE()
         ORDER BY p.fecha_pedido DESC
-    ''', (telefono, g.tienda['id']))
+    ''', (telefono_limpio,))
 
     pedidos = cursor.fetchall()
+
+    # Si no encuentra, intentar busqueda flexible
+    if not pedidos:
+        cursor.execute('''
+            SELECT p.numero_orden, p.estado, p.total, p.fecha_pedido,
+                   c.nombre as cliente_nombre, c.telefono as cliente_tel,
+                   t.nombre as tienda_nombre
+            FROM pedidos p
+            INNER JOIN clientes c ON p.cliente_id = c.id
+            INNER JOIN tiendas t ON p.tienda_id = t.id
+            WHERE c.telefono LIKE %s
+            AND p.estado NOT IN ('entregado', 'cancelado')
+            AND DATE(p.fecha_pedido) = CURDATE()
+            ORDER BY p.fecha_pedido DESC
+        ''', (f'%{telefono_limpio}%',))
+        pedidos = cursor.fetchall()
+
     conn.close()
 
     if not pedidos:
-        return jsonify({'error': 'No tienes pedidos activos', 'encontrado': False})
+        return jsonify({'error': 'No tienes pedidos activos hoy', 'encontrado': False})
 
     # Retornar lista de pedidos
     pedidos_list = []
@@ -2084,6 +2153,340 @@ def rastrear_pedido_telefono(telefono):
         'pedidos': pedidos_list,
         'total_pedidos': len(pedidos_list)
     })
+
+
+# ============ WOMPI - PASARELA DE PAGOS ============
+WOMPI_PUBLIC_KEY = os.environ.get('WOMPI_PUBLIC_KEY', '')
+WOMPI_PRIVATE_KEY = os.environ.get('WOMPI_PRIVATE_KEY', '')
+WOMPI_INTEGRITY_KEY = os.environ.get('WOMPI_INTEGRITY_KEY', '')
+WOMPI_SANDBOX = os.environ.get('WOMPI_SANDBOX', 'true').lower() == 'true'
+WOMPI_API_URL = 'https://sandbox.wompi.co/v1' if WOMPI_SANDBOX else 'https://production.wompi.co/v1'
+
+# Log para debug de Wompi
+logger.info(f"Wompi configurado: {'Sí' if WOMPI_PUBLIC_KEY else 'No'} - Sandbox: {WOMPI_SANDBOX}")
+if WOMPI_PUBLIC_KEY:
+    logger.info(f"Wompi Public Key: {WOMPI_PUBLIC_KEY[:20]}...")
+
+def generar_firma_wompi(referencia, monto_centavos, moneda='COP'):
+    """Genera la firma de integridad para Wompi"""
+    # La firma es: SHA256(referencia + monto_en_centavos + moneda + integrity_key)
+    cadena = f"{referencia}{monto_centavos}{moneda}{WOMPI_INTEGRITY_KEY}"
+    return hashlib.sha256(cadena.encode()).hexdigest()
+
+@app.route('/api/wompi/config', methods=['GET'])
+@requiere_tienda
+def wompi_config():
+    """Retorna la configuración de Wompi para el frontend"""
+    # Verificar si Wompi está configurado para esta tienda
+    if not WOMPI_PUBLIC_KEY or WOMPI_PUBLIC_KEY.startswith('pub_test_XXX'):
+        return jsonify({
+            'habilitado': False,
+            'message': 'Wompi no está configurado'
+        })
+
+    return jsonify({
+        'habilitado': True,
+        'public_key': WOMPI_PUBLIC_KEY,
+        'sandbox': WOMPI_SANDBOX
+    })
+
+@app.route('/api/wompi/crear-transaccion', methods=['POST'])
+@requiere_tienda
+def wompi_crear_transaccion():
+    """Prepara datos para Wompi SIN crear el pedido - el pedido se crea cuando Wompi confirma"""
+    data = request.json
+
+    # Obtener datos del cliente
+    nombre = data.get('nombre', '').strip()
+    telefono = data.get('telefono', '').strip()
+    direccion = data.get('direccion', '').strip()
+    referencias = data.get('referencias', '').strip()
+    notas = data.get('notas', '').strip()
+    tipo = data.get('tipo', 'domicilio')
+
+    if not nombre or not telefono:
+        return jsonify({'error': 'Nombre y teléfono son requeridos'}), 400
+
+    # Obtener carrito de la sesión
+    carrito = session.get('carrito', [])
+    if not carrito:
+        return jsonify({'error': 'Carrito vacío'}), 400
+
+    # Calcular totales
+    subtotal = sum(float(item['precio']) * item['cantidad'] for item in carrito)
+    costo_domicilio = float(g.tienda.get('costo_domicilio', 0)) if tipo == 'domicilio' else 0
+    total = subtotal + costo_domicilio
+
+    # Generar referencia única para Wompi (incluye timestamp para evitar colisiones)
+    import time as t
+    timestamp = int(t.time())
+    referencia = f"WPAY-{timestamp}"
+
+    # El total ya está en pesos, convertir a centavos para Wompi
+    monto_centavos = int(float(total) * 100)
+
+    # Generar firma de integridad
+    firma = generar_firma_wompi(referencia, monto_centavos)
+
+    # Guardar datos del pedido pendiente en sesión (NO en BD)
+    session['wompi_pendiente'] = {
+        'referencia': referencia,
+        'nombre': nombre,
+        'telefono': telefono,
+        'direccion': direccion,
+        'referencias': referencias,
+        'notas': notas,
+        'tipo': tipo,
+        'subtotal': subtotal,
+        'costo_domicilio': costo_domicilio,
+        'total': total,
+        'carrito': carrito,
+        'tienda_id': g.tienda['id'],
+        'timestamp': timestamp
+    }
+    session.modified = True
+
+    return jsonify({
+        'success': True,
+        'referencia': referencia,
+        'monto': monto_centavos,
+        'firma': firma,
+        'nombre': nombre,
+        'telefono': telefono,
+        'email': f"{telefono}@cliente.local"
+    })
+
+@app.route('/api/wompi/webhook', methods=['POST'])
+def wompi_webhook():
+    """Webhook para recibir notificaciones de Wompi sobre el estado de las transacciones"""
+    # Verificar firma del webhook
+    signature_header = request.headers.get('X-Event-Checksum', '')
+
+    data = request.json
+    logger.info(f"Wompi Webhook recibido: {json.dumps(data)}")
+
+    if not data:
+        return jsonify({'error': 'No data'}), 400
+
+    event = data.get('event', '')
+    transaction = data.get('data', {}).get('transaction', {})
+
+    if event == 'transaction.updated':
+        referencia = transaction.get('reference', '')
+        status = transaction.get('status', '')
+        transaction_id = transaction.get('id', '')
+
+        # Extraer numero de orden de la referencia (PED-XXX-timestamp)
+        if referencia.startswith('PED-'):
+            partes = referencia.split('-')
+            if len(partes) >= 2:
+                numero_orden = partes[1]
+
+                conn = get_connection()
+                cursor = conn.cursor()
+
+                # Buscar el pedido
+                cursor.execute('SELECT id, estado FROM pedidos WHERE numero_orden = %s', (numero_orden,))
+                pedido = cursor.fetchone()
+
+                if pedido:
+                    if status == 'APPROVED':
+                        # Pago aprobado - actualizar pedido
+                        cursor.execute('''
+                            UPDATE pedidos
+                            SET metodo_pago = 'wompi'
+                            WHERE id = %s
+                        ''', (pedido['id'],))
+                        conn.commit()
+                        logger.info(f"Pago Wompi aprobado para pedido {numero_orden}")
+                    elif status in ['DECLINED', 'ERROR', 'VOIDED']:
+                        # Pago fallido
+                        cursor.execute('''
+                            UPDATE pedidos
+                            SET metodo_pago = 'wompi_fallido'
+                            WHERE id = %s
+                        ''', (pedido['id'],))
+                        conn.commit()
+                        logger.info(f"Pago Wompi fallido para pedido {numero_orden}: {status}")
+
+                conn.close()
+
+    return jsonify({'success': True})
+
+@app.route('/api/wompi/verificar/<referencia>', methods=['GET'])
+@requiere_tienda
+def wompi_verificar_transaccion(referencia):
+    """Verifica el estado de una transacción en Wompi y crea el pedido si está aprobado"""
+    import requests
+
+    try:
+        # Consultar estado en Wompi con Bearer token
+        response = requests.get(
+            f"{WOMPI_API_URL}/transactions?reference={referencia}",
+            headers={'Authorization': f'Bearer {WOMPI_PRIVATE_KEY}'},
+            timeout=10
+        )
+
+        logger.info(f"Wompi verificar response: {response.status_code} - {response.text[:200] if response.text else 'empty'}")
+
+        if response.status_code == 200:
+            data = response.json()
+            transactions = data.get('data', [])
+
+            if transactions:
+                transaction = transactions[0]
+                status = transaction.get('status')
+
+                # Si el pago fue aprobado, CREAR el pedido ahora
+                if status == 'APPROVED':
+                    # Obtener datos guardados en sesión
+                    datos_pedido = session.get('wompi_pendiente')
+                    if datos_pedido and datos_pedido.get('referencia') == referencia:
+                        resultado = crear_pedido_wompi_confirmado(datos_pedido)
+                        if resultado.get('success'):
+                            # Limpiar datos de sesión
+                            session.pop('wompi_pendiente', None)
+                            session['carrito'] = []
+                            session.modified = True
+
+                            return jsonify({
+                                'success': True,
+                                'status': status,
+                                'transaction_id': transaction.get('id'),
+                                'amount': transaction.get('amount_in_cents', 0) / 100,
+                                'payment_method': transaction.get('payment_method_type'),
+                                'numero_orden': resultado.get('numero_orden'),
+                                'pedido_creado': True
+                            })
+
+                return jsonify({
+                    'success': True,
+                    'status': status,
+                    'transaction_id': transaction.get('id'),
+                    'amount': transaction.get('amount_in_cents', 0) / 100,
+                    'payment_method': transaction.get('payment_method_type')
+                })
+            else:
+                # No hay transacción aún - puede estar pendiente
+                return jsonify({'success': True, 'status': 'PENDING', 'message': 'Transacción pendiente'})
+        else:
+            logger.error(f"Error Wompi API: {response.status_code} - {response.text}")
+            return jsonify({'success': False, 'error': 'Error consultando Wompi', 'status': 'PENDING'}), 200
+    except Exception as e:
+        logger.error(f"Error verificando transacción Wompi: {e}")
+        return jsonify({'success': False, 'error': str(e), 'status': 'PENDING'}), 200
+
+
+def crear_pedido_wompi_confirmado(datos):
+    """Crea el pedido en BD después de que Wompi confirma el pago"""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Obtener o crear cliente
+        cursor.execute('SELECT id FROM clientes WHERE telefono = %s AND tienda_id = %s',
+                      (datos['telefono'], datos['tienda_id']))
+        cliente = cursor.fetchone()
+
+        if cliente:
+            cliente_id = cliente['id']
+            cursor.execute('''
+                UPDATE clientes SET nombre = %s, direccion = %s, referencias = %s
+                WHERE id = %s
+            ''', (datos['nombre'], datos['direccion'], datos['referencias'], cliente_id))
+        else:
+            cursor.execute('''
+                INSERT INTO clientes (tienda_id, nombre, telefono, direccion, referencias)
+                VALUES (%s, %s, %s, %s, %s)
+            ''', (datos['tienda_id'], datos['nombre'], datos['telefono'],
+                  datos['direccion'], datos['referencias']))
+            cliente_id = cursor.lastrowid
+
+        # Generar número de orden
+        cursor.execute('SELECT COUNT(*) as count FROM pedidos WHERE tienda_id = %s', (datos['tienda_id'],))
+        count = cursor.fetchone()['count']
+        numero_orden = f"{count + 1:04d}"
+
+        # Crear pedido con método de pago wompi (YA PAGADO)
+        cursor.execute('''
+            INSERT INTO pedidos (tienda_id, cliente_id, numero_orden, tipo, subtotal,
+                               costo_domicilio, total, notas, estado, metodo_pago)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pendiente', 'wompi')
+        ''', (datos['tienda_id'], cliente_id, numero_orden, datos['tipo'],
+              datos['subtotal'], datos['costo_domicilio'], datos['total'], datos['notas']))
+        pedido_id = cursor.lastrowid
+
+        # Obtener un producto valido de la tienda para usar como fallback
+        cursor.execute('SELECT id FROM productos WHERE tienda_id = %s LIMIT 1', (datos['tienda_id'],))
+        fallback_row = cursor.fetchone()
+        fallback_producto_id = fallback_row['id'] if fallback_row else 1
+
+        # Insertar items del pedido
+        for item in datos['carrito']:
+            # Manejar tanto productos como ofertas
+            if item.get('es_oferta') or item.get('oferta_id'):
+                # Para ofertas, usar el producto_id de la oferta si existe, o fallback
+                oferta_id = item.get('oferta_id')
+                if oferta_id:
+                    cursor.execute('SELECT producto_id FROM ofertas WHERE id = %s', (oferta_id,))
+                    oferta_row = cursor.fetchone()
+                    producto_id = oferta_row['producto_id'] if oferta_row and oferta_row.get('producto_id') else fallback_producto_id
+                else:
+                    producto_id = fallback_producto_id
+                nota_item = f"[OFERTA] {item.get('nombre', '')}"
+            else:
+                producto_id = item.get('producto_id', fallback_producto_id)
+                # Si el nombre del item es diferente al producto base (variante), guardarlo en notas
+                nombre_item = item.get('nombre', '')
+                cursor.execute('SELECT nombre FROM productos WHERE id = %s', (producto_id,))
+                prod_row = cursor.fetchone()
+                nombre_producto_base = prod_row['nombre'] if prod_row else ''
+                # Si el nombre incluye variante (es diferente al base), guardarlo
+                if nombre_item and nombre_item != nombre_producto_base:
+                    nota_item = nombre_item
+                else:
+                    nota_item = ''
+
+            cursor.execute('''
+                INSERT INTO detalle_pedidos (pedido_id, producto_id, cantidad, precio_unitario, subtotal, notas)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            ''', (pedido_id, producto_id, item['cantidad'],
+                  item['precio'], item['precio'] * item['cantidad'], nota_item))
+
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Pedido {numero_orden} creado después de pago Wompi confirmado")
+        return {'success': True, 'numero_orden': numero_orden, 'pedido_id': pedido_id}
+
+    except Exception as e:
+        logger.error(f"Error creando pedido Wompi confirmado: {e}")
+        return {'success': False, 'error': str(e)}
+
+@app.route('/pago/resultado')
+@requiere_tienda
+def pago_resultado():
+    """Página de resultado después del pago con Wompi"""
+    referencia = request.args.get('ref')
+
+    if not referencia:
+        return redirect('/')
+
+    # Obtener datos pendientes de la sesión
+    datos_pendiente = session.get('wompi_pendiente', {})
+
+    # Preparar datos para mostrar mientras se verifica
+    pedido_temp = {
+        'numero_orden': '---',
+        'cliente_nombre': datos_pendiente.get('nombre', 'Cliente'),
+        'total': datos_pendiente.get('total', 0),
+        'metodo_pago': 'wompi_pendiente'  # Mostrar como pendiente inicialmente
+    }
+
+    return render_template('cliente/pago_resultado.html',
+                         pedido=pedido_temp,
+                         tienda=g.tienda,
+                         referencia_wompi=referencia)
 
 
 # ============ HEALTH CHECK PARA MONITOREO ============
@@ -2139,3 +2542,9 @@ def readiness_check():
         return jsonify({'ready': True}), 200
     except:
         return jsonify({'ready': False}), 503
+
+
+# ============ INICIALIZACIÓN ============
+if __name__ == '__main__':
+    init_database()
+    app.run(host='0.0.0.0', port=5000, debug=DEBUG)

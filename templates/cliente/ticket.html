@@ -142,6 +142,28 @@
             color: #fff;
         }
 
+        .pago-badge {
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 10px 0;
+            padding: 8px;
+            border: 2px solid #000;
+        }
+
+        .pago-badge.pagado {
+            background: #dcfce7;
+            border-color: #166534;
+            color: #166534;
+        }
+
+        .pago-badge.pendiente {
+            background: #fef3c7;
+            border-color: #b45309;
+            color: #b45309;
+        }
+
         @media print {
             body {
                 width: 80mm;
@@ -193,10 +215,28 @@
     <div class="tipo-pedido">
         {% if pedido.tipo == 'domicilio' %}
             DOMICILIO
+        {% elif pedido.tipo == 'local' %}
+            LOCAL / MESA
         {% else %}
             PARA LLEVAR
         {% endif %}
     </div>
+
+    {% if pedido.mesero_nombre %}
+    <div class="info-row" style="text-align: center; margin: 10px 0; padding: 8px; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 4px;">
+        <strong>Pedido por: {{ pedido.mesero_nombre }}</strong>
+    </div>
+    {% endif %}
+
+    {% if pedido.metodo_pago == 'wompi' %}
+    <div class="pago-badge pagado">
+        PAGADO - TRANSFERENCIA
+    </div>
+    {% elif pedido.metodo_pago == 'efectivo' or not pedido.metodo_pago %}
+    <div class="pago-badge pendiente">
+        PAGO: EFECTIVO
+    </div>
+    {% endif %}
 
     <div class="info-section">
         <div class="info-row">

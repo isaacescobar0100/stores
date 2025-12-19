@@ -2388,6 +2388,10 @@ class MeseroPedidosDialog(ctk.CTkToplevel):
         pedido_id = pedido.get('id')
         detalle = self.api.obtener_detalle_pedido(pedido_id)
 
+        # Usar el pedido del detalle si está disponible (tiene metodo_pago)
+        if detalle and isinstance(detalle, dict) and detalle.get('pedido'):
+            pedido = {**pedido, **detalle.get('pedido', {})}
+
         # Crear ventana de detalle
         dialog = ctk.CTkToplevel(self)
         dialog.title(f"Pedido #{pedido.get('numero_orden', pedido_id)}")
@@ -2418,6 +2422,22 @@ class MeseroPedidosDialog(ctk.CTkToplevel):
         total = float(pedido.get('total', 0) or 0)
         ctk.CTkLabel(header_content, text=f"Total: ${total:,.0f}",
                     font=ctk.CTkFont(size=14), text_color=Theme.SUCCESS).pack(anchor='w', pady=(4, 0))
+
+        # Método de pago
+        metodo_pago = pedido.get('metodo_pago', 'efectivo')
+        pago_row = ctk.CTkFrame(header_content, fg_color="transparent")
+        pago_row.pack(anchor='w', pady=(8, 0))
+
+        if metodo_pago == 'wompi':
+            ctk.CTkLabel(pago_row, text="✓ PAGADO - TRANSFERENCIA",
+                        font=ctk.CTkFont(size=12, weight="bold"),
+                        fg_color="#166534", text_color="white",
+                        corner_radius=4, padx=10, pady=4).pack(side='left')
+        else:
+            ctk.CTkLabel(pago_row, text="💵 EFECTIVO - PENDIENTE",
+                        font=ctk.CTkFont(size=12, weight="bold"),
+                        fg_color="#78350f", text_color="#fbbf24",
+                        corner_radius=4, padx=10, pady=4).pack(side='left')
 
         # Titulo productos
         ctk.CTkLabel(container, text="Productos vendidos:",
